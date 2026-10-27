@@ -1,0 +1,36 @@
+rules_version = '2';
+
+// Dish photography lives under restaurants/{restaurantId}/menu/{fileName}.
+// Anyone may read it (the customer app shows it); only the owning merchant may
+// upload, and only images under 5 MB.
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    match /restaurants/{restaurantId}/menu/{fileName} {
+      allow read: if true;
+
+      allow write: if request.auth != null
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*')
+        && firestore.get(
+             /databases/(default)/documents/restaurants/$(restaurantId)
+           ).data.ownerId == request.auth.uid;
+    }
+
+    // Profile photos: a user may only write their own.
+    match /users/{uid}/avatar.jpg {
+      allow read: if true;
+      allow write: if request.auth != null
+        && request.auth.uid == uid
+        && request.resource.size < 2 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+
+    // Nothing else is writable.
+    match /{allPaths=**} {
+      allow read: if false;
+      allow write: if false;
+    }
+  }
+}

@@ -1,0 +1,61 @@
+# The deterministic gate for pull requests.
+#
+# Copilot review reasons about a diff; it does not run anything. Anything that
+# must be deterministic belongs here, as a required status check, with Copilot
+# review as the advisory layer on top.
+#
+# Make these required: Settings -> Branches -> add a ruleset -> require the
+# "analyze" and "test" checks. Without that, this workflow is a suggestion.
+name: PR checks
+
+on:
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+
+permissions:
+  contents: read
+
+env:
+  FLUTTER_VERSION: '3.35.3'
+
+jobs:
+  analyze:
+    name: analyze
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze
+
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+      - run: flutter pub get
+      - run: flutter test
+
+  # The layering rule, enforced rather than reviewed. It is the one thing an
+  # advisory review will eventually let through on a busy day.
+  architecture:
+    name: dependency rule
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: lib/domain must stay pure Dart
+        run: |
+          if grep -rn "package:flutter/" lib/domain/; then
+            echo "::error::lib/domain imports Flutter. Dependencies point inward only."
+            exit 1
+          fi

@@ -1,0 +1,114 @@
+#!/usr/bin/env bash
+# MSDevBuild Eats — pre-commit checks.
+#
+# Install:  git config core.hooksPath .githooks && chmod +x .githooks/*
+#
+# Every check below is deterministic. Anything needing judgement lives in
+# .ai/prompts/ as an agent instead. See .ai/README.md.
+
+set -uo pipefail
+fail=0
+staged=$(git diff --cached --name-only --diff-filter=ACM)
+
+# --- architecture: the dependency rule ------------------------------------
+# lib/domain is pure Dart. This is the cheapest real check in the repo.
+if git diff --cached --name-only --diff-filter=ACM | grep -q '^lib/domain/'; then
+  if grep -rn "package:flutter/" lib/domain/ 2>/dev/null; then
+    echo "architecture: lib/domain must stay pure Dart — no package:flutter import."
+    fail=1
+  fi
+fi
+
+# --- deps: a new package needs a written reason ---------------------------
+new_pkgs=$(git diff --cached -U0 pubspec.yaml 2>/dev/null | grep '^+ ' \
+           | grep -vE '^\+\s*#' | awk -F: '{print $1}' | tr -d '+ ')
+for pkg in $new_pkgs; do
+  [ -n "$pkg" ] || continue
+  grep -q "^| \`$pkg\`" docs/dependencies.md 2>/dev/null || {
+    echo "deps: '$pkg' added with no entry in docs/dependencies.md."
+    echo "      One line: why it is here, and what it would take to remove."
+    fail=1
+  }
+done
+
+# --- copyright: no asset enters the repo without provenance ---------------
+for f in $(git diff --cached --name-only --diff-filter=A \
+           | grep -iE '\.(png|jpg|jpeg|svg|ttf|otf|woff2?)$'); do
+  grep -q "$(basename "$f")" ATTRIBUTIONS.md 2>/dev/null || {
+    echo "copyright: $f has no entry in ATTRIBUTIONS.md."
+    echo "           Record where it came from and the licence, now, while you know."
+    fail=1
+  }
+done
+
+# --- devops: credentials and platform config never enter the repo ---------
+blocked='google-services\.json|GoogleService-Info\.plist|\.keystore$|\.jks$|\.p12$|serviceAccount.*\.json$'
+if echo "$staged" | grep -qE "$blocked"; then
+  echo "devops: credential or platform config staged for commit."
+  echo "        These belong in repository secrets, not in git history."
+  fail=1
+fi
+
+# --- security: a new Android permission needs a justification -------------
+new_perms=$(git diff --cached -U0 -- android/app/src/main/AndroidManifest.xml 2>/dev/null \
+            | grep '^+' | grep -oE 'android\.permission\.[A-Z_]+' | sort -u)
+for p in $new_perms; do
+  grep -q "$p" docs/security/permissions.md 2>/dev/null || {
+    echo "security: new permission $p has no entry in docs/security/permissions.md"
+    echo "          Write why it is needed and what it exposes, then commit again."
+    fail=1
+  }
+done
+
+# --- cybersecurity: the CI pattern that leaks secrets to forks ------------
+for f in $(echo "$staged" | grep -E '^\.github/workflows/.*\.ya?ml$'); do
+  grep -q 'pull_request_target' "$f" 2>/dev/null || continue
+  if grep -qE 'ref:\s*\$\{\{\s*github\.event\.pull_request\.head' "$f"; then
+    echo "cybersecurity: $f runs pull_request_target and checks out fork code."
+    echo "               That workflow can hand repository secrets to any fork. Split it."
+    fail=1
+  fi
+done
+
+# --- monitoring: a swallowed exception is an invisible incident -----------
+offenders=$(echo "$staged" | grep -E '\.dart$' \
+  | xargs -r grep -nE 'catch\s*\([^)]*\)\s*\{\s*\}|on\s+\w+\s*\{\s*\}' 2>/dev/null)
+if [ -n "$offenders" ]; then
+  echo "monitoring: empty catch block — this failure will never be seen:"
+  echo "$offenders" | sed 's/^/  /'
+  echo "            Map it through mapErrorToFailure, or rethrow."
+  fail=1
+fi
+
+# --- analytics: no event may be logged that the spec does not define ------
+for name in $(git diff --cached -U0 -- '*.dart' 2>/dev/null \
+              | grep '^+' | grep -oE "logEvent\(\s*name:\s*'[a-z_]+'" \
+              | grep -oE "'[a-z_]+'" | tr -d "'" | sort -u); do
+  grep -q "name: $name" analytics/events.yaml 2>/dev/null || {
+    echo "analytics: '$name' is not defined in analytics/events.yaml."
+    echo "           Undefined events become data nobody can read in three months."
+    fail=1
+  }
+done
+
+# --- prompts: a prompt without boundaries is a wish -----------------------
+for f in $(echo "$staged" | grep -E '^\.ai/prompts/.*\.md$'); do
+  grep -qiE '^(do not|never|if you cannot)' "$f" || {
+    echo "prompt: $f has no refusal condition."
+    echo "        State what this agent must NOT output, and what it says instead."
+    fail=1
+  }
+done
+
+# --- agents-md: a rule in three prompts belongs in AGENTS.md --------------
+dupes=$(cat .ai/prompts/*.md 2>/dev/null \
+  | grep -oiE '(never|do not|always) [a-z0-9 ._/-]{12,60}' \
+  | sort | uniq -c | awk '$1 > 2 {$1=""; print}')
+if [ -n "$dupes" ]; then
+  echo "agents-md: these rules are repeated across three or more prompts:"
+  echo "$dupes" | sed 's/^/  /'
+  echo "           Move them into AGENTS.md before the copies drift apart."
+  fail=1
+fi
+
+exit $fail

@@ -1,0 +1,108 @@
+rules_version = '2';
+
+// MSDevBuild Eats Firestore security rules.
+//
+// Principles:
+//  * The catalogue (restaurants, menus, promos, reviews) is world-readable so
+//    the app can browse before sign-in.
+//  * Anything user-scoped is readable only by its owner.
+//  * Orders are created exclusively by the `placeOrder` Cloud Function, so a
+//    tampered client cannot invent its own totals.
+//  * Roles are set at sign-up and cannot be escalated from the client.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isSelf(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function roleOf() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function isPartner() {
+      return signedIn() && roleOf() == 'restaurantPartner';
+    }
+
+    function isRider() {
+      return signedIn() && roleOf() == 'deliveryPartner';
+    }
+
+    function ownsRestaurant(rid) {
+      return isPartner() &&
+        get(/databases/$(database)/documents/restaurants/$(rid)).data.ownerId == request.auth.uid;
+    }
+
+    // --- Users --------------------------------------------------------------
+    match /users/{uid} {
+      allow read: if isSelf(uid);
+
+      allow create: if isSelf(uid)
+        && request.resource.data.role in ['customer', 'restaurantPartner', 'deliveryPartner'];
+
+      // Role is immutable after creation.
+      allow update: if isSelf(uid)
+        && request.resource.data.role == resource.data.role;
+
+      allow delete: if false;
+    }
+
+    // --- Catalogue ----------------------------------------------------------
+    match /restaurants/{rid} {
+      allow read: if true;
+      allow write: if ownsRestaurant(rid);
+
+      match /menu/{itemId} {
+        allow read: if true;
+        allow write: if ownsRestaurant(rid);
+      }
+    }
+
+    match /promos/{promoId} {
+      allow read: if true;
+      allow write: if false;  // administered server-side
+    }
+
+    // --- Orders -------------------------------------------------------------
+    match /orders/{orderId} {
+      allow read: if signedIn() && (
+        resource.data.userId == request.auth.uid ||
+        ownsRestaurant(resource.data.restaurantId) ||
+        isRider()
+      );
+
+      // Only the placeOrder function may create an order.
+      allow create: if false;
+
+      allow update: if signedIn() && (
+        ownsRestaurant(resource.data.restaurantId) ||
+        isRider() ||
+        // A customer may only cancel their own order or mark it rated.
+        (resource.data.userId == request.auth.uid &&
+         request.resource.data.diff(resource.data).affectedKeys()
+           .hasOnly(['status', 'timeline', 'isRated']))
+      );
+
+      allow delete: if false;
+    }
+
+    // --- Reviews ------------------------------------------------------------
+    match /reviews/{reviewId} {
+      allow read: if true;
+
+      allow create: if signedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.rating >= 1
+        && request.resource.data.rating <= 5
+        && request.resource.data.comment.size() <= 300;
+
+      // Reviews are immutable once posted.
+      allow update, delete: if false;
+    }
+  }
+}

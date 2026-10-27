@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "hooks": {
+    "preToolUse": [
+      {
+        "match": { "tool": "bash" },
+        "run": {
+          "bash": ".github/hooks/scripts/guard-commit.sh"
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,136 @@
+# Analytics event specification for MSDevBuild Eats.
+#
+# STATUS: specification only. No analytics SDK is wired up in this app, and no
+# code logs any of these events today. The spec exists first on purpose — it is
+# cheaper to agree on names before the events are scattered through the code
+# than to reconcile them afterwards.
+#
+# Produced with .ai/prompts/analytics.md.
+# .githooks/pre-commit fails a commit that logs an event name not defined here.
+#
+# Naming: snake_case, verb_noun, past tense. One name per user action, ever.
+
+funnels:
+  order:
+    # Derived from OrderStatus.trackingStages so the funnel and the state
+    # machine cannot disagree.
+    steps: [app_opened, restaurant_viewed, dish_added, checkout_started, order_placed]
+  onboarding:
+    steps: [app_opened, onboarding_completed, signed_in]
+
+events:
+  - name: app_opened
+    fires: once per cold start, from the splash screen after session restore
+    funnel: [order, onboarding]
+    position: 1
+    params:
+      backend_mode: string      # demo | firebase — a demo session is not a real one
+      theme_mode: string
+
+  - name: onboarding_completed
+    fires: when the last onboarding page is dismissed, or Skip is tapped
+    funnel: onboarding
+    position: 2
+    params:
+      skipped: bool
+
+  - name: signed_in
+    fires: on a successful sign-in, once
+    funnel: onboarding
+    position: 3
+    params:
+      role: string              # customer | restaurantPartner | deliveryPartner
+      demo_persona: bool        # tapped a persona card rather than typing
+
+  - name: category_selected
+    fires: when a category tile or browse filter chip is tapped
+    params:
+      category_id: string
+
+  - name: search_performed
+    fires: after the 320ms debounce settles, not per keystroke
+    params:
+      query_length: int         # length, never the query itself
+      result_count: int
+
+  - name: restaurant_viewed
+    fires: on the restaurant detail screen, once per navigation
+    funnel: order
+    position: 2
+    params:
+      restaurant_id: string
+      source: string            # home | browse | search | favourites
+
+  - name: dish_added
+    fires: when a dish is added to the cart
+    funnel: order
+    position: 3
+    params:
+      restaurant_id: string
+      dish_id: string
+      quantity: int
+
+  - name: cart_conflict_shown
+    fires: when a dish from a second restaurant triggers pendingConflict
+    params:
+      resolved: string          # replaced | kept | dismissed
+
+  - name: promo_applied
+    fires: on a promo code submission, success or failure
+    params:
+      code: string
+      accepted: bool
+      reject_reason: string     # expired | below_minimum | unknown_code
+
+  - name: checkout_started
+    fires: on entering the checkout screen with a non-empty cart
+    funnel: order
+    position: 4
+    params:
+      item_count: int
+      subtotal_myr: float
+
+  - name: order_placed
+    fires: once, after PlaceOrder returns Success
+    funnel: order
+    position: 5
+    params:
+      order_id: string
+      restaurant_id: string
+      total_myr: float
+      payment_method: string
+
+  - name: order_cancelled
+    fires: when the customer cancels from the tracking screen
+    params:
+      order_id: string
+      status_at_cancel: string
+
+  - name: partner_order_advanced
+    fires: when a partner moves an order to its next status
+    params:
+      from_status: string
+      to_status: string
+
+  - name: rider_job_accepted
+    fires: when a rider claims a job from the pool
+    params:
+      order_id: string
+
+# --- Fields that must never be sent ----------------------------------------
+# Delivery address, phone number, customer name, email, FCM token.
+# See privacy/data-inventory.md. A parameter that identifies a person needs a
+# privacy decision before it ships, not after.
+forbidden_params:
+  - delivery_address
+  - phone
+  - customer_name
+  - email
+  - fcm_token
+
+# --- Questions this spec cannot answer today -------------------------------
+# 1. Why a cart was abandoned without a promo rejection — there is no signal
+#    between checkout_started and leaving the screen.
+# 2. Whether a rider declined a job, since declining is not an action today.
+# 3. Anything about web-versus-Android behaviour; no platform param is defined
+#    because the SDK would supply it, and inventing a second one causes drift.

@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="MSDevBuild Eats">
+  <title>MSDevBuild Eats</title>
+  <defs>
+    <linearGradient id="plate" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#00C75A"/>
+      <stop offset="1" stop-color="#008C3E"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Brand plate -->
+  <rect width="512" height="512" rx="114.5" ry="114.5" fill="url(#plate)"/>
+
+  <!-- "M" monogram: left stem, up-stroke, down-stroke, right stem -->
+  <path d="M133.1 320 L133.1 156.2 L256 268.8 L378.9 156.2 L378.9 320"
+        fill="none"
+        stroke="#FFFFFF"
+        stroke-width="57.3"
+        stroke-linecap="round"
+        stroke-linejoin="round"/>
+
+  <!-- Accent dot -->
+  <circle cx="256" cy="390.1" r="31.2" fill="#FF7A00"/>
+</svg>

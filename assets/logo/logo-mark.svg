@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="MSDevBuild">
+  <title>MSDevBuild mark</title>
+
+  <!-- Transparent-background variant, for use on a coloured surface. -->
+  <path d="M133.1 320 L133.1 156.2 L256 268.8 L378.9 156.2 L378.9 320"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="57.3"
+        stroke-linecap="round"
+        stroke-linejoin="round"/>
+
+  <circle cx="256" cy="390.1" r="31.2" fill="#FF7A00"/>
+</svg>

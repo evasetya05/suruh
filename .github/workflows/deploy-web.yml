@@ -1,0 +1,89 @@
+# Builds the Flutter web app and publishes it to GitHub Pages.
+#
+# Live at: https://jssuthahar.github.io/food-delivery-app/
+#
+# One-time setup: Settings -> Pages -> Build and deployment -> Source: "GitHub Actions".
+# No secrets required; the app ships with the offline demo backend.
+name: Deploy web
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never let two Pages deployments race; the newest push wins.
+concurrency:
+  group: github-pages
+  cancel-in-progress: true
+
+env:
+  FLUTTER_VERSION: '3.35.3'
+
+jobs:
+  build:
+    name: Build web bundle
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Test
+        run: flutter test
+
+      # Pages serves the site from /<repo>/, so the base href has to match or
+      # every asset request 404s. Derived from the repo name rather than
+      # hard-coded, so a fork or rename keeps working.
+      - name: Build
+        run: |
+          flutter build web \
+            --release \
+            --base-href "/${{ github.event.repository.name }}/" \
+            --build-number "${{ github.run_number }}"
+
+      - name: Prepare artifact
+        run: |
+          # Pages would otherwise run the output through Jekyll.
+          touch build/web/.nojekyll
+          # The app uses hash-based routing, so this is only insurance in case
+          # someone later switches to usePathUrlStrategy().
+          cp build/web/index.html build/web/404.html
+
+      # Requires Pages to already be enabled with Source = "GitHub Actions"
+      # (Settings -> Pages). `enablement: true` is not used here: creating a
+      # Pages site is a repo-admin operation and GITHUB_TOKEN cannot do it,
+      # so it fails with "Resource not accessible by integration".
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/web
+
+  deploy:
+    name: Deploy to Pages
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

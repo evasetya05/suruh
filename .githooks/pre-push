@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# MSDevBuild Eats — pre-push checks.
+#
+# Slower than pre-commit on purpose. Anything that takes more than ~2s at
+# commit time belongs here.
+
+set -uo pipefail
+fail=0
+
+# --- analyzer: cheap enough here, too slow at commit time -----------------
+if command -v flutter >/dev/null 2>&1; then
+  flutter analyze --no-pub || fail=1
+fi
+
+# --- license: the deny list is deterministic, so it is a hook -------------
+DENY='GPL-2.0|GPL-3.0|AGPL|SSPL|CC-BY-NC|BUSL'
+if command -v dart >/dev/null 2>&1 && dart pub global list 2>/dev/null | grep -q license_checker; then
+  violations=$(dart pub global run license_checker --json 2>/dev/null \
+    | jq -r --arg d "$DENY" '.[]? | select(.license | test($d)) |
+        "\(.name) [\(.license)] via \(.parent // "direct")"' 2>/dev/null)
+  if [ -n "${violations:-}" ]; then
+    echo "license: packages under a denied licence are in the resolved tree:"
+    echo "$violations" | sed 's/^/  /'
+    echo "         Transitive counts. It ships in the binary either way."
+    fail=1
+  fi
+fi
+
+# --- release: a tag needs a version bump and a changelog entry ------------
+tag=$(git describe --tags --exact-match HEAD 2>/dev/null) || tag=""
+if [ -n "$tag" ]; then
+  version=$(grep -m1 '^version:' pubspec.yaml | awk '{print $2}')
+  [ "$tag" = "v${version%%+*}" ] || {
+    echo "release: tag $tag does not match pubspec version $version"; fail=1; }
+  grep -q "## ${version%%+*}" CHANGELOG.md 2>/dev/null || {
+    echo "release: no CHANGELOG entry for ${version%%+*}"; fail=1; }
+fi
+
+# --- skills: skills rot when the code they cite moves ---------------------
+for skill in $(git ls-files '.github/skills/**/SKILL.md' '.ai/skills/**/SKILL.md' 2>/dev/null); do
+  for path in $(grep -oE '(lib|test)/[a-zA-Z0-9_/]+\.dart' "$skill" | sort -u); do
+    [ -e "$path" ] || {
+      echo "skill: $skill references $path, which no longer exists."
+      echo "       A skill citing dead paths teaches the agent a codebase you deleted."
+      fail=1
+    }
+  done
+done
+
+exit $fail
