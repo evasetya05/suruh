@@ -2,6 +2,7 @@ import 'package:get_it/get_it.dart';
 
 import '../../core/config/app_config.dart';
 import '../../core/network/connectivity_service.dart';
+import '../../core/network/suruh_api_client.dart';
 import '../../core/storage/local_storage.dart';
 import '../../data/datasources/local/demo_data_source.dart';
 import '../../data/datasources/remote/firestore_data_source.dart';
@@ -12,6 +13,9 @@ import '../../data/repositories/firebase_auth_repository.dart';
 import '../../data/repositories/order_repository_impl.dart';
 import '../../data/repositories/partner_repository_impl.dart';
 import '../../data/repositories/review_repository_impl.dart';
+import '../../data/repositories/suruh_auth_repository.dart';
+import '../../data/repositories/suruh_catalog_repository.dart';
+import '../../data/repositories/suruh_order_repository.dart';
 import '../../data/repositories/user_repository_impl.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../domain/repositories/cart_repository.dart';
@@ -45,45 +49,68 @@ abstract final class ServiceLocator {
     final LocalStorage storage = await LocalStorage.create();
     sl
       ..registerSingleton<LocalStorage>(storage)
-      ..registerLazySingleton<ConnectivityService>(ConnectivityService.new);
+      ..registerLazySingleton<ConnectivityService>(ConnectivityService.new)
+      ..registerLazySingleton<SuruhApiClient>(
+        () => SuruhApiClient(storage: sl<LocalStorage>()),
+      );
 
     // --- Data sources -------------------------------------------------------
     sl.registerLazySingleton<DemoDataSource>(() => DemoDataSource.instance);
 
     final bool useFirebase = AppConfig.instance.backend == Backend.firebase;
+    final bool useSuruhApi = AppConfig.instance.backend == Backend.suruhApi;
+
     if (useFirebase) {
       sl.registerLazySingleton<FirestoreDataSource>(FirestoreDataSource.new);
     }
 
     // --- Repositories -------------------------------------------------------
     //
-    // The repository interface is the swap point. Auth demonstrates it with two
-    // live implementations; the remaining repositories run on the demo source
-    // and read through FirestoreDataSource once Backend.firebase is selected.
+    // The repository interface is the swap point.
+    // By default, it connects to the live SURUH Django REST Framework backend
+    // on compose.yaml (port 8019), with graceful fallback.
     sl
       ..registerLazySingleton<AuthRepository>(
-        () => useFirebase
-            ? FirebaseAuthRepository(
-                remote: sl<FirestoreDataSource>(),
+        () => useSuruhApi
+            ? SuruhAuthRepository(
+                api: sl<SuruhApiClient>(),
                 storage: sl<LocalStorage>(),
               )
-            : AuthRepositoryImpl(
-                remote: sl<DemoDataSource>(),
-                storage: sl<LocalStorage>(),
-              ),
+            : useFirebase
+                ? FirebaseAuthRepository(
+                    remote: sl<FirestoreDataSource>(),
+                    storage: sl<LocalStorage>(),
+                  )
+                : AuthRepositoryImpl(
+                    remote: sl<DemoDataSource>(),
+                    storage: sl<LocalStorage>(),
+                  ),
       )
       ..registerLazySingleton<CatalogRepository>(
-        () => CatalogRepositoryImpl(
-          remote: sl<DemoDataSource>(),
-          storage: sl<LocalStorage>(),
-          connectivity: sl<ConnectivityService>(),
-        ),
+        () => useSuruhApi
+            ? SuruhCatalogRepository(
+                api: sl<SuruhApiClient>(),
+                storage: sl<LocalStorage>(),
+                connectivity: sl<ConnectivityService>(),
+                fallbackSource: sl<DemoDataSource>(),
+              )
+            : CatalogRepositoryImpl(
+                remote: sl<DemoDataSource>(),
+                storage: sl<LocalStorage>(),
+                connectivity: sl<ConnectivityService>(),
+              ),
       )
       ..registerLazySingleton<CartRepository>(
         () => CartRepositoryImpl(storage: sl<LocalStorage>()),
       )
       ..registerLazySingleton<OrderRepository>(
-        () => OrderRepositoryImpl(remote: sl<DemoDataSource>()),
+        () => useSuruhApi
+            ? SuruhOrderRepository(
+                api: sl<SuruhApiClient>(),
+                storage: sl<LocalStorage>(),
+                fallbackSource: sl<DemoDataSource>(),
+              )
+            : OrderRepositoryImpl(remote: sl<DemoDataSource>()),
       )
       ..registerLazySingleton<ReviewRepository>(
         () => ReviewRepositoryImpl(remote: sl<DemoDataSource>()),

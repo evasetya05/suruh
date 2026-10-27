@@ -174,7 +174,7 @@ class _SearchEntry extends StatelessWidget {
               const SizedBox(width: AppSpacing.sm),
               const Expanded(
                 child: Text(
-                  'Search nasi lemak, sushi, bubble tea...',
+                  'Mau suruh apa hari ini? (Dokumen, belanja, antre...)',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(

@@ -7,41 +7,55 @@ abstract final class Validators {
     r'^[\w.+-]+@[\w-]+\.[\w.-]+$',
   );
 
-  /// Malaysian mobile numbers: 01X-XXXXXXX, optionally +60 prefixed.
-  static final RegExp _phonePattern = RegExp(r'^(\+?60|0)1\d{8,9}$');
+  /// Indonesian mobile numbers: 08... or +628..., or standard international format.
+  static final RegExp _indoPhonePattern = RegExp(r'^(\+62|62|0)8[1-9][0-9]{6,11}$');
+  static final RegExp _genericPhonePattern = RegExp(r'^\+?[0-9]{8,15}$');
 
   static String? email(String? value) {
     final String input = value?.trim() ?? '';
-    if (input.isEmpty) return 'Email is required';
-    if (!_emailPattern.hasMatch(input)) return 'Enter a valid email address';
+    if (input.isEmpty) return 'Email wajib diisi';
+    if (!_emailPattern.hasMatch(input)) return 'Format email tidak valid';
+    return null;
+  }
+
+  static String? emailOrPhone(String? value) {
+    final String input = (value ?? '').trim().replaceAll(RegExp(r'[\s-]'), '');
+    if (input.isEmpty) return 'Nomor HP atau Email wajib diisi';
+    if (input.contains('@')) {
+      if (!_emailPattern.hasMatch(input)) return 'Format email tidak valid';
+      return null;
+    }
+    if (!_indoPhonePattern.hasMatch(input) && !_genericPhonePattern.hasMatch(input)) {
+      return 'Format nomor HP tidak valid (contoh: 08123456789)';
+    }
     return null;
   }
 
   static String? password(String? value) {
     final String input = value ?? '';
-    if (input.isEmpty) return 'Password is required';
-    if (input.length < 6) return 'Use at least 6 characters';
+    if (input.isEmpty) return 'Password wajib diisi';
+    if (input.length < 6) return 'Gunakan minimal 6 karakter';
     return null;
   }
 
   static String? confirmPassword(String? value, String original) {
-    if ((value ?? '').isEmpty) return 'Please confirm your password';
-    if (value != original) return 'Passwords do not match';
+    if ((value ?? '').isEmpty) return 'Konfirmasi password Anda';
+    if (value != original) return 'Password tidak cocok';
     return null;
   }
 
   static String? name(String? value) {
     final String input = value?.trim() ?? '';
-    if (input.isEmpty) return 'Name is required';
-    if (input.length < 2) return 'Enter your full name';
+    if (input.isEmpty) return 'Nama lengkap wajib diisi';
+    if (input.length < 2) return 'Masukkan nama lengkap Anda';
     return null;
   }
 
   static String? phone(String? value) {
     final String input = (value ?? '').replaceAll(RegExp(r'[\s-]'), '');
-    if (input.isEmpty) return 'Phone number is required';
-    if (!_phonePattern.hasMatch(input)) {
-      return 'Enter a valid Malaysian number, e.g. 012-3456789';
+    if (input.isEmpty) return 'Nomor telepon wajib diisi';
+    if (!_indoPhonePattern.hasMatch(input) && !_genericPhonePattern.hasMatch(input)) {
+      return 'Gunakan format Indonesia (contoh: 08123456789 atau +628123456789)';
     }
     return null;
   }

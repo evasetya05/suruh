@@ -1,8 +1,7 @@
 name: food_delivery_app
 description: >-
-  MSDevBuild Eats - a portfolio-quality Flutter food delivery demo inspired by
-  the Malaysian Grab super-app experience, built for the article at
-  https://blog.msdevbuild.com/. Runs on web, mobile and tablet.
+  SURUH Frontend - Platform Jasa On-Demand Pontianak ("Ada urusan? Suruh kami").
+  Frontend untuk Django REST API backend di suruh_backend/compose.yaml.
 version: 1.0.0+1
 publish_to: 'none'
 
@@ -12,6 +11,9 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+
+  # HTTP Client for SURUH REST API Backend
+  http: ^1.2.2
 
   # State management (BLoC / Cubit)
   flutter_bloc: ^8.1.6

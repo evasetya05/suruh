@@ -120,9 +120,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                     const SizedBox(height: AppSpacing.lg),
                     AppTextField(
-                      label: 'Mobile number',
+                      label: 'Nomor WhatsApp / HP',
                       controller: _phone,
-                      hint: '012-345 6789',
+                      hint: '08123456789',
                       prefixIcon: Icons.phone_outlined,
                       keyboardType: TextInputType.phone,
                       textInputAction: TextInputAction.next,

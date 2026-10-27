@@ -26,7 +26,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final TextEditingController _email =
-      TextEditingController(text: 'customer@msdevbuild.com');
+      TextEditingController(text: '081211112222');
   final TextEditingController _password =
       TextEditingController(text: 'demo1234');
 
@@ -49,10 +49,10 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _forgotPassword() {
-    final String? error = Validators.email(_email.text);
+    final String? error = Validators.emailOrPhone(_email.text);
     if (error != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Enter your email first - $error')),
+        SnackBar(content: Text('Masukkan nomor HP / email Anda - $error')),
       );
       return;
     }
@@ -98,32 +98,32 @@ class _LoginScreenState extends State<LoginScreen> {
                       const _Brand(),
                       const SizedBox(height: AppSpacing.xxxl),
                       Text(
-                        'Welcome back',
+                        'Selamat Datang',
                         style: theme.textTheme.headlineSmall,
                       ),
                       const SizedBox(height: AppSpacing.xs),
                       Text(
-                        'Sign in to pick up where you left off.',
+                        'Masuk untuk mengakses layanan SURUH Pontianak.',
                         style: theme.textTheme.bodyMedium?.copyWith(
                           color: theme.textTheme.bodySmall?.color,
                         ),
                       ),
                       const SizedBox(height: AppSpacing.xxl),
                       AppTextField(
-                        label: 'Email',
+                        label: 'Nomor HP atau Email',
                         controller: _email,
-                        hint: 'you@example.com',
-                        prefixIcon: Icons.alternate_email_rounded,
-                        keyboardType: TextInputType.emailAddress,
+                        hint: '08123456789 atau user@suruh.id',
+                        prefixIcon: Icons.phone_android_rounded,
+                        keyboardType: TextInputType.text,
                         textInputAction: TextInputAction.next,
-                        validator: Validators.email,
-                        autofillHints: const <String>[AutofillHints.email],
+                        validator: Validators.emailOrPhone,
+                        autofillHints: const <String>[AutofillHints.telephoneNumber, AutofillHints.email],
                       ),
                       const SizedBox(height: AppSpacing.lg),
                       AppTextField(
                         label: 'Password',
                         controller: _password,
-                        hint: 'Your password',
+                        hint: 'Password Anda',
                         prefixIcon: Icons.lock_outline_rounded,
                         obscure: true,
                         textInputAction: TextInputAction.done,
@@ -136,12 +136,12 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: TextButton(
                           onPressed:
                               state.isSubmitting ? null : _forgotPassword,
-                          child: const Text('Forgot password?'),
+                          child: const Text('Lupa password?'),
                         ),
                       ),
                       const SizedBox(height: AppSpacing.sm),
                       AppButton(
-                        label: 'Sign in',
+                        label: 'Masuk',
                         isLoading: state.isSubmitting,
                         onPressed: _submit,
                       ),

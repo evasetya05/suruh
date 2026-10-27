@@ -1,5 +1,10 @@
+import 'package:flutter/foundation.dart';
+
 /// Which backend implementation the repositories are bound to.
 enum Backend {
+  /// SURUH Django REST Framework API (suruh_backend/compose.yaml on port 8019)
+  suruhApi,
+
   /// Fully offline, seeded demo backend. Zero configuration, works everywhere.
   demo,
 
@@ -8,20 +13,20 @@ enum Backend {
   firebase,
 }
 
-/// Compile-time-ish application configuration.
+/// Application configuration.
 ///
-/// Kept as a plain object (rather than scattered `const` globals) so tests and
-/// flavours can override it before [ServiceLocator.init] runs.
+/// Configures backend target, API host, branding, currency, and operational params.
 class AppConfig {
   const AppConfig({
-    this.backend = Backend.demo,
-    this.appName = 'MSDevBuild Eats',
-    this.tagline = 'Everyday everything, delivered',
-    this.publisher = 'MSDevBuild',
-    this.articleUrl = 'https://blog.msdevbuild.com/',
-    this.currencySymbol = 'RM',
-    this.currencyLocale = 'ms_MY',
-    this.simulatedLatency = const Duration(milliseconds: 450),
+    this.backend = Backend.suruhApi,
+    this.appName = 'SURUH',
+    this.tagline = 'Ada urusan? Suruh kami',
+    this.publisher = 'SURUH Pontianak',
+    this.articleUrl = 'http://localhost:8019/api/docs/',
+    this.currencySymbol = 'Rp',
+    this.currencyLocale = 'id_ID',
+    this.customApiBaseUrl,
+    this.simulatedLatency = const Duration(milliseconds: 300),
     this.orderStageDuration = const Duration(seconds: 8),
     this.enableAnalytics = false,
   });
@@ -30,28 +35,37 @@ class AppConfig {
   final String appName;
   final String tagline;
 
-  /// Who built the demo. Shown on the splash screen and in the about dialog.
+  /// Who built or operates the platform.
   final String publisher;
 
-  /// The article this project accompanies. Surfaced in-app so anyone exploring
-  /// the build can find the write-up that explains it.
+  /// API documentation / Swagger URL.
   final String articleUrl;
 
-  /// Malaysian Ringgit, matching the Grab-in-Malaysia framing of the demo.
+  /// Indonesian Rupiah currency formatting.
   final String currencySymbol;
   final String currencyLocale;
 
-  /// Artificial delay applied by the demo backend so loading/shimmer states are
-  /// actually observable. Set to [Duration.zero] in tests.
+  /// Explicit API Base URL override (e.g. "http://192.168.1.100:8019").
+  final String? customApiBaseUrl;
+
+  /// Returns the effective API Base URL pointing to suruh_backend.
+  /// Matches compose.yaml port 8019:8000.
+  String get apiBaseUrl {
+    if (customApiBaseUrl != null && customApiBaseUrl!.trim().isNotEmpty) {
+      return customApiBaseUrl!.trim().replaceAll(RegExp(r'/+$'), '');
+    }
+    if (kIsWeb) return 'http://localhost:8019';
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      return 'http://10.0.2.2:8019';
+    }
+    return 'http://localhost:8019';
+  }
+
   final Duration simulatedLatency;
-
-  /// How long each order-tracking stage lasts in the demo simulation.
   final Duration orderStageDuration;
-
   final bool enableAnalytics;
 
-  /// `MSDevBuild Eats by MSDevBuild` reads badly; this is the byline form.
-  String get byline => 'A demo by $publisher';
+  String get byline => '$appName - $publisher';
 
   static AppConfig instance = const AppConfig();
 

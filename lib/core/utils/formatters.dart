@@ -4,19 +4,27 @@ import '../config/app_config.dart';
 
 /// Presentation-layer formatting helpers.
 abstract final class Formatters {
-  /// `RM 24.90`
+  /// `Rp 25.000` or `RM 24.90`
   static String currency(double amount) {
+    final bool isIdr = AppConfig.instance.currencySymbol == 'Rp';
     final NumberFormat format = NumberFormat.currency(
-      locale: 'en_US',
+      locale: isIdr ? 'id_ID' : 'en_US',
       symbol: '${AppConfig.instance.currencySymbol} ',
-      decimalDigits: 2,
+      decimalDigits: isIdr ? 0 : 2,
     );
     return format.format(amount);
   }
 
-  /// `RM 24.90` without the space, for tight spaces like chips.
-  static String currencyCompact(double amount) =>
-      '${AppConfig.instance.currencySymbol}${amount.toStringAsFixed(2)}';
+  /// `Rp 25.000` without space
+  static String currencyCompact(double amount) {
+    final bool isIdr = AppConfig.instance.currencySymbol == 'Rp';
+    final NumberFormat format = NumberFormat.currency(
+      locale: isIdr ? 'id_ID' : 'en_US',
+      symbol: AppConfig.instance.currencySymbol,
+      decimalDigits: isIdr ? 0 : 2,
+    );
+    return format.format(amount);
+  }
 
   /// `4.8` - ratings always show one decimal.
   static String rating(double value) => value.toStringAsFixed(1);
