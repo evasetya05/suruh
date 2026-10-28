@@ -80,7 +80,7 @@ class _SearchViewState extends State<_SearchView> {
                           .read<SearchBloc>()
                           .add(SearchQueryChanged(value)),
                       decoration: InputDecoration(
-                        hintText: 'Search restaurants or dishes',
+                        hintText: 'Cari layanan, toko, atau yang mau disuruh...',
                         prefixIcon: const Icon(Icons.search_rounded, size: 20),
                         suffixIcon: state.query.isEmpty
                             ? null
@@ -129,14 +129,14 @@ class _SearchBody extends StatelessWidget {
 
   /// Shown before anyone has typed anything.
   static const List<String> _trending = <String>[
-    'Nasi lemak',
-    'Bubble tea',
-    'Xiao long bao',
-    'Burger',
-    'Ramen',
-    'Durian',
-    'Roti canai',
-    'Fried chicken',
+    'Kirim dokumen',
+    'Titip Pasar Flamboyan',
+    'Beli obat Kimia Farma',
+    'Kopi Asiang',
+    'Antre loket RS',
+    'Cuci AC Pontianak',
+    'Ambil barang tertinggal',
+    'Pindahan kost',
   ];
 
   @override
@@ -152,7 +152,7 @@ class _SearchBody extends StatelessWidget {
 
     if (state.status == SearchStatus.failure) {
       return ErrorView(
-        message: state.errorMessage ?? 'Search is unavailable right now.',
+        message: state.errorMessage ?? 'Pencarian tidak tersedia saat ini.',
         onRetry: () => context
             .read<SearchBloc>()
             .add(SearchQueryChanged(state.query)),
@@ -169,8 +169,8 @@ class _SearchBody extends StatelessWidget {
 
     if (state.hasNoResults) {
       return EmptyView(
-        title: 'No matches for "${state.query.trim()}"',
-        message: 'Check the spelling, or try a cuisine like "Thai" or "pizza".',
+        title: 'Tidak ada hasil untuk "${state.query.trim()}"',
+        message: 'Coba kata kunci lain seperti "antar", "belanja", atau "kopi".',
         icon: Icons.search_off_rounded,
       );
     }

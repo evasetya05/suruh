@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:food_delivery_app/domain/entities/address.dart';
-import 'package:food_delivery_app/domain/entities/order.dart';
+import 'package:suruh/domain/entities/address.dart';
+import 'package:suruh/domain/entities/order.dart';
 
 /// The order status machine drives the customer timeline, the partner's
 /// "next action" button and the rider queue, so its transitions are pinned here.

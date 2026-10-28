@@ -1,14 +1,14 @@
 import 'package:bloc_test/bloc_test.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:food_delivery_app/core/error/failures.dart';
-import 'package:food_delivery_app/core/usecase/usecase.dart';
-import 'package:food_delivery_app/core/utils/result.dart';
-import 'package:food_delivery_app/domain/entities/address.dart';
-import 'package:food_delivery_app/domain/entities/cart.dart';
-import 'package:food_delivery_app/domain/entities/food_item.dart';
-import 'package:food_delivery_app/domain/entities/restaurant.dart';
-import 'package:food_delivery_app/domain/usecases/cart_usecases.dart';
-import 'package:food_delivery_app/features/cart/bloc/cart_bloc.dart';
+import 'package:suruh/core/error/failures.dart';
+import 'package:suruh/core/usecase/usecase.dart';
+import 'package:suruh/core/utils/result.dart';
+import 'package:suruh/domain/entities/address.dart';
+import 'package:suruh/domain/entities/cart.dart';
+import 'package:suruh/domain/entities/food_item.dart';
+import 'package:suruh/domain/entities/restaurant.dart';
+import 'package:suruh/domain/usecases/cart_usecases.dart';
+import 'package:suruh/features/cart/bloc/cart_bloc.dart';
 import 'package:mocktail/mocktail.dart';
 
 class _MockLoadCart extends Mock implements LoadCart {}

@@ -69,15 +69,15 @@ class ProfileScreen extends StatelessWidget {
                 ),
                 _MenuTile(
                   icon: Icons.favorite_border_rounded,
-                  title: 'Favourite restaurants',
+                  title: 'Mitra & Toko Favorit',
                   subtitle:
-                      '${user.favouriteRestaurantIds.length} saved for later',
+                      '${user.favouriteRestaurantIds.length} tersimpan',
                   onTap: () => context.push(Routes.favourites),
                 ),
                 _MenuTile(
                   icon: Icons.receipt_long_outlined,
-                  title: 'Order history',
-                  subtitle: 'Past orders and receipts',
+                  title: 'Riwayat Pesanan & Suruh',
+                  subtitle: 'Status tugas dan bukti pembayaran',
                   onTap: () => context.go(Routes.orders),
                 ),
                 const SizedBox(height: AppSpacing.xl),

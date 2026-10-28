@@ -47,14 +47,14 @@ Future<void> bootstrap({AppConfig? config}) async {
     FlutterError.presentError(details);
     developer.log(
       'Uncaught framework error',
-      name: 'MSDevBuild Eats',
+      name: 'SURUH',
       error: details.exception,
       stackTrace: details.stack,
       level: 1000,
     );
   };
 
-  runApp(const MSDevBuildEatsApp());
+  runApp(const SuruhApp());
 }
 
 /// Starts Firebase only when the app is configured to use it.

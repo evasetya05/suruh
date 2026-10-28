@@ -1,17 +1,17 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:food_delivery_app/data/datasources/local/seed/seed_categories.dart';
-import 'package:food_delivery_app/data/datasources/local/seed/seed_foods.dart';
-import 'package:food_delivery_app/data/datasources/local/seed/seed_orders.dart';
-import 'package:food_delivery_app/data/datasources/local/seed/seed_promos.dart';
-import 'package:food_delivery_app/data/datasources/local/seed/seed_restaurants.dart';
-import 'package:food_delivery_app/data/datasources/local/seed/seed_reviews.dart';
-import 'package:food_delivery_app/data/datasources/local/seed/seed_users.dart';
-import 'package:food_delivery_app/data/models/food_item_model.dart';
-import 'package:food_delivery_app/data/models/order_model.dart';
-import 'package:food_delivery_app/data/models/restaurant_model.dart';
-import 'package:food_delivery_app/data/models/review_model.dart';
-import 'package:food_delivery_app/domain/entities/order.dart';
-import 'package:food_delivery_app/domain/entities/user.dart';
+import 'package:suruh/data/datasources/local/seed/seed_categories.dart';
+import 'package:suruh/data/datasources/local/seed/seed_foods.dart';
+import 'package:suruh/data/datasources/local/seed/seed_orders.dart';
+import 'package:suruh/data/datasources/local/seed/seed_promos.dart';
+import 'package:suruh/data/datasources/local/seed/seed_restaurants.dart';
+import 'package:suruh/data/datasources/local/seed/seed_reviews.dart';
+import 'package:suruh/data/datasources/local/seed/seed_users.dart';
+import 'package:suruh/data/models/food_item_model.dart';
+import 'package:suruh/data/models/order_model.dart';
+import 'package:suruh/data/models/restaurant_model.dart';
+import 'package:suruh/data/models/review_model.dart';
+import 'package:suruh/domain/entities/order.dart';
+import 'package:suruh/domain/entities/user.dart';
 
 /// The demo backend is the app's only data source out of the box, so the seed
 /// corpus is treated as production data and asserted on: broken references here

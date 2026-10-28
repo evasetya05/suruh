@@ -128,16 +128,7 @@ class _LogoPainter extends CustomPainter {
   final bool showPlate;
   final Color markColor;
 
-  // Fractions of the icon's side, shared with logo.svg and generate_icons.py.
   static const double _cornerRadius = 0.2237;
-  static const double _stroke = 0.1120;
-  static const double _mLeft = 0.2600;
-  static const double _mRight = 0.7400;
-  static const double _mTop = 0.3050;
-  static const double _mBottom = 0.6250;
-  static const double _mValleyY = 0.5250;
-  static const double _dotCentreY = 0.7620;
-  static const double _dotRadius = 0.0610;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -157,28 +148,31 @@ class _LogoPainter extends CustomPainter {
       );
     }
 
-    // The "M": one polyline, round caps and joins.
-    final Path monogram = Path()
-      ..moveTo(_mLeft * s, _mBottom * s)
-      ..lineTo(_mLeft * s, _mTop * s)
-      ..lineTo(0.5 * s, _mValleyY * s)
-      ..lineTo(_mRight * s, _mTop * s)
-      ..lineTo(_mRight * s, _mBottom * s);
+    // The "S" monogram for SURUH: smooth continuous curve with rounded caps
+    final Path sPath = Path()
+      ..moveTo(0.70 * s, 0.35 * s)
+      ..cubicTo(0.68 * s, 0.27 * s, 0.60 * s, 0.24 * s, 0.50 * s, 0.24 * s)
+      ..cubicTo(0.35 * s, 0.24 * s, 0.28 * s, 0.32 * s, 0.28 * s, 0.42 * s)
+      ..cubicTo(0.28 * s, 0.52 * s, 0.38 * s, 0.56 * s, 0.52 * s, 0.60 * s)
+      ..cubicTo(0.66 * s, 0.64 * s, 0.72 * s, 0.70 * s, 0.72 * s, 0.79 * s)
+      ..cubicTo(0.72 * s, 0.89 * s, 0.63 * s, 0.95 * s, 0.49 * s, 0.95 * s)
+      ..cubicTo(0.36 * s, 0.95 * s, 0.28 * s, 0.89 * s, 0.26 * s, 0.80 * s);
 
     canvas.drawPath(
-      monogram,
+      sPath,
       Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = _stroke * s
+        ..strokeWidth = 0.12 * s
         ..strokeCap = StrokeCap.round
         ..strokeJoin = StrokeJoin.round
         ..color = markColor
         ..isAntiAlias = true,
     );
 
+    // Accent dot: lightning/spark of speed
     canvas.drawCircle(
-      Offset(0.5 * s, _dotCentreY * s),
-      _dotRadius * s,
+      Offset(0.75 * s, 0.22 * s),
+      0.065 * s,
       Paint()
         ..color = AppColors.accentOrange
         ..isAntiAlias = true,

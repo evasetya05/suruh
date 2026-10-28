@@ -1,5 +1,5 @@
-import 'package:food_delivery_app/domain/entities/address.dart';
-import 'package:food_delivery_app/domain/entities/user.dart';
+import 'package:suruh/domain/entities/address.dart';
+import 'package:suruh/domain/entities/user.dart';
 
 /// Fixtures shared across test files.
 const Address testAddress = Address(

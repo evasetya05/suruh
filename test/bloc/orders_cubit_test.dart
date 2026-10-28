@@ -1,12 +1,12 @@
 import 'package:bloc_test/bloc_test.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:food_delivery_app/core/error/failures.dart';
-import 'package:food_delivery_app/core/utils/result.dart';
-import 'package:food_delivery_app/domain/entities/address.dart';
-import 'package:food_delivery_app/domain/entities/cart.dart';
-import 'package:food_delivery_app/domain/entities/order.dart';
-import 'package:food_delivery_app/domain/usecases/order_usecases.dart';
-import 'package:food_delivery_app/features/orders/bloc/orders_cubit.dart';
+import 'package:suruh/core/error/failures.dart';
+import 'package:suruh/core/utils/result.dart';
+import 'package:suruh/domain/entities/address.dart';
+import 'package:suruh/domain/entities/cart.dart';
+import 'package:suruh/domain/entities/order.dart';
+import 'package:suruh/domain/usecases/order_usecases.dart';
+import 'package:suruh/features/orders/bloc/orders_cubit.dart';
 import 'package:mocktail/mocktail.dart';
 
 class _MockGetOrderHistory extends Mock implements GetOrderHistory {}

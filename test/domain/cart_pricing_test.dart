@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:food_delivery_app/domain/entities/cart.dart';
-import 'package:food_delivery_app/domain/entities/food_item.dart';
-import 'package:food_delivery_app/domain/entities/promo.dart';
+import 'package:suruh/domain/entities/cart.dart';
+import 'package:suruh/domain/entities/food_item.dart';
+import 'package:suruh/domain/entities/promo.dart';
 
 /// Cart maths is the highest-risk pure logic in the app - every fee, discount
 /// and total the customer is charged comes from here.

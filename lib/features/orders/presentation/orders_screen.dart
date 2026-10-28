@@ -53,11 +53,11 @@ class _OrdersView extends StatelessWidget {
       length: 2,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Your orders'),
+          title: const Text('Pesanan & Tugas SURUH'),
           bottom: const TabBar(
             tabs: <Widget>[
-              Tab(text: 'Active'),
-              Tab(text: 'Past'),
+              Tab(text: 'Sedang Berjalan'),
+              Tab(text: 'Selesai'),
             ],
           ),
         ),
@@ -75,7 +75,7 @@ class _OrdersView extends StatelessWidget {
 
             if (state.status == OrdersStatus.failure) {
               return ErrorView(
-                message: state.errorMessage ?? 'Could not load your orders.',
+                message: state.errorMessage ?? 'Gagal memuat daftar pesanan Anda.',
                 onRetry: () => context.read<OrdersCubit>().load(userId),
               );
             }
@@ -85,16 +85,15 @@ class _OrdersView extends StatelessWidget {
                 _OrderList(
                   orders: state.active,
                   userId: userId,
-                  emptyTitle: 'No orders in progress',
+                  emptyTitle: 'Belum ada pesanan aktif',
                   emptyMessage:
-                      'When you place an order it will show up here with live '
-                      'tracking.',
+                      'Ketika Anda menyuruh mitra atau membuat pesanan, progresnya akan tampil di sini secara real-time.',
                 ),
                 _OrderList(
                   orders: state.past,
                   userId: userId,
-                  emptyTitle: 'No past orders yet',
-                  emptyMessage: 'Your completed orders will be listed here.',
+                  emptyTitle: 'Belum ada riwayat pesanan',
+                  emptyMessage: 'Pesanan dan tugas yang telah selesai akan tercatat di sini.',
                 ),
               ],
             );

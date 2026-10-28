@@ -25,24 +25,21 @@ class _Page {
 
 const List<_Page> _pages = <_Page>[
   _Page(
-    emoji: '🍜',
-    title: 'Everything you crave,\nin one app',
-    body: 'Twenty kitchens across the Klang Valley, from Kampung Baru nasi '
-        'lemak to Pavilion dim sum.',
+    emoji: '✨',
+    title: 'Ada Urusan?\nSuruh Kami!',
+    body: 'Platform jasa on-demand serba bisa di Pontianak. Mau suruh kirim barang, belanja, antri tiket, atau urusan apa saja, serahkan pada kami!',
     tint: AppColors.primary,
   ),
   _Page(
     emoji: '🛵',
-    title: 'Delivered hot,\nnot lukewarm',
-    body: 'Riders are matched the moment your food leaves the kitchen, so it '
-        'arrives in the state the chef intended.',
+    title: 'Bisa Suruh Apa Saja,\nKapan Saja',
+    body: 'Butuh bantuan cepat? Tulis instruksi tugasmu atau pilih layanan, mitra terdekat siap langsung meluncur menyelesaikannya.',
     tint: AppColors.accentOrange,
   ),
   _Page(
     emoji: '📍',
-    title: 'Watch every step\nof the way',
-    body: 'Live status from confirmed to delivered, with your rider\'s name and '
-        'plate number the whole time.',
+    title: 'Pantau Real-Time\n& Transparan',
+    body: 'Lacak proses pekerjaan mulai dari pencarian mitra, penawaran harga, penugasan, hingga pesanan selesai dengan aman.',
     tint: AppColors.accentBlue,
   ),
 ];

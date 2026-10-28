@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:food_delivery_app/core/theme/app_theme.dart';
-import 'package:food_delivery_app/core/widgets/app_button.dart';
-import 'package:food_delivery_app/core/widgets/common_widgets.dart';
-import 'package:food_delivery_app/core/widgets/state_views.dart';
+import 'package:suruh/core/theme/app_theme.dart';
+import 'package:suruh/core/widgets/app_button.dart';
+import 'package:suruh/core/widgets/common_widgets.dart';
+import 'package:suruh/core/widgets/state_views.dart';
 
 /// Widget tests for the reusable pieces every screen leans on. If these break,
 /// loading / empty / error handling breaks everywhere at once.

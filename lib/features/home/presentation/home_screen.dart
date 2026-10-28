@@ -6,6 +6,7 @@ import '../../../app/cubit/theme_cubit.dart';
 import '../../../app/di/service_locator.dart';
 import '../../../app/router/route_paths.dart';
 import '../../../core/responsive/responsive.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/common_widgets.dart';
 import '../../../core/widgets/skeletons.dart';
@@ -20,6 +21,7 @@ import '../../shared/widgets/dish_card.dart';
 import '../../shared/widgets/promo_carousel.dart';
 import '../../shared/widgets/restaurant_card.dart';
 import '../bloc/home_bloc.dart';
+import 'widgets/custom_suruh_modal.dart';
 import 'widgets/home_header.dart';
 
 /// The customer landing screen.
@@ -99,6 +101,93 @@ class _HomeView extends StatelessWidget {
 
   List<Widget> _buildFeed(BuildContext context, HomeFeed feed) {
     return <Widget>[
+      // --- Hero Quick Action: Suruh Apa Saja --------------------------------
+      SliverToBoxAdapter(
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(context.gutter, AppSpacing.lg, context.gutter, 0),
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: <Color>[Color(0xFF00B14F), Color(0xFF007A34)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(AppRadius.lg),
+              boxShadow: <BoxShadow>[
+                BoxShadow(
+                  color: AppColors.primary.withValues(alpha: 0.28),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () => CustomSuruhModal.show(context),
+                borderRadius: BorderRadius.circular(AppRadius.lg),
+                child: Padding(
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  child: Row(
+                    children: <Widget>[
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                        ),
+                        child: const Text('⚡', style: TextStyle(fontSize: 28)),
+                      ),
+                      const SizedBox(width: AppSpacing.md),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Text(
+                              'Ada Urusan? Suruh Kami!',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            SizedBox(height: 2),
+                            Text(
+                              'Bisa suruh apa saja: antar, belanja, antre & lainnya.',
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(AppRadius.pill),
+                        ),
+                        child: const Text(
+                          'Suruh ✨',
+                          style: TextStyle(
+                            color: AppColors.primaryDark,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+
       // --- Categories --------------------------------------------------------
       SliverToBoxAdapter(
         child: Padding(
@@ -111,14 +200,21 @@ class _HomeView extends StatelessWidget {
                 Padding(
                   padding: EdgeInsets.symmetric(horizontal: context.gutter),
                   child: const SectionHeader(
-                    title: 'What are you craving?',
+                    title: 'Layanan SURUH',
+                    subtitle: 'Bisa suruh apa saja sesuai kebutuhanmu',
                     padding: EdgeInsets.only(bottom: AppSpacing.xs),
                   ),
                 ),
                 CategoryStrip(
                   categories: feed.categories,
                   padding: EdgeInsets.symmetric(horizontal: context.gutter),
-                  onSelected: (FoodCategory c) => _openCategory(context, c),
+                  onSelected: (FoodCategory c) {
+                    if (c.id == 'bebas') {
+                      CustomSuruhModal.show(context);
+                    } else {
+                      _openCategory(context, c);
+                    }
+                  },
                 ),
               ],
             ),
@@ -146,11 +242,9 @@ class _HomeView extends StatelessWidget {
       // --- Featured ----------------------------------------------------------
       _rail(
         context,
-        title: 'Featured this week',
-        subtitle: 'Hand-picked kitchens running an offer',
-        onSeeAll: () => context.push('${Routes.browse}?title=Featured'),
-        // Tall enough for the card's image, two text lines and both meta rows
-        // with headroom for the app's maximum text scale.
+        title: 'Mitra & Hub Layanan',
+        subtitle: 'Penyedia jasa & toko terverifikasi di Pontianak',
+        onSeeAll: () => context.push('${Routes.browse}?title=Mitra%20Layanan'),
         height: 296,
         itemCount: feed.featured.length,
         itemBuilder: (BuildContext context, int i) =>
@@ -160,8 +254,8 @@ class _HomeView extends StatelessWidget {
       // --- Popular dishes ----------------------------------------------------
       _rail(
         context,
-        title: 'Popular right now',
-        subtitle: 'What people are ordering today',
+        title: 'Layanan Populer Minggu Ini',
+        subtitle: 'Paling sering dipesan oleh warga Pontianak',
         height: 262,
         itemCount: feed.popularDishes.length,
         itemBuilder: (BuildContext context, int i) =>
@@ -172,8 +266,8 @@ class _HomeView extends StatelessWidget {
       if (feed.offers.isNotEmpty)
         _rail(
           context,
-          title: 'Deals under RM 25',
-          subtitle: 'Discounted dishes, while stocks last',
+          title: 'Tarif Hemat & Penawaran',
+          subtitle: 'Biaya jasa transparan & terjangkau',
           height: 262,
           itemCount: feed.offers.length,
           itemBuilder: (BuildContext context, int i) =>
@@ -186,8 +280,8 @@ class _HomeView extends StatelessWidget {
           padding: const EdgeInsets.only(top: AppSpacing.xxl),
           child: ContentContainer(
             child: SectionHeader(
-              title: 'All restaurants near you',
-              subtitle: '${feed.nearby.length} places delivering to Bukit Bintang',
+              title: 'Semua Mitra di Pontianak',
+              subtitle: '${feed.nearby.length} mitra siap melayani seluruh kota',
               actionLabel: 'Filter',
               onAction: () => context.push(Routes.browse),
             ),

@@ -20,14 +20,17 @@ import 'router/app_router.dart';
 /// Three blocs are hoisted to the very top because more than one screen depends
 /// on them: the session, the basket and the theme. Everything else is created
 /// per-screen so its lifetime matches the route.
-class MSDevBuildEatsApp extends StatefulWidget {
-  const MSDevBuildEatsApp({super.key});
+/// Root widget for SURUH On-Demand App.
+class SuruhApp extends StatefulWidget {
+  const SuruhApp({super.key});
 
   @override
-  State<MSDevBuildEatsApp> createState() => _MSDevBuildEatsAppState();
+  State<SuruhApp> createState() => _SuruhAppState();
 }
 
-class _MSDevBuildEatsAppState extends State<MSDevBuildEatsApp> {
+typedef MSDevBuildEatsApp = SuruhApp;
+
+class _SuruhAppState extends State<SuruhApp> {
   late final AuthBloc _authBloc;
   late final CartBloc _cartBloc;
   late final ThemeCubit _themeCubit;

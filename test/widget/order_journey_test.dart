@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:food_delivery_app/app/app.dart';
-import 'package:food_delivery_app/app/di/service_locator.dart';
-import 'package:food_delivery_app/core/config/app_config.dart';
-import 'package:food_delivery_app/core/storage/local_storage.dart';
-import 'package:food_delivery_app/data/datasources/local/demo_data_source.dart';
+import 'package:suruh/app/app.dart';
+import 'package:suruh/app/di/service_locator.dart';
+import 'package:suruh/core/config/app_config.dart';
+import 'package:suruh/core/storage/local_storage.dart';
+import 'package:suruh/data/datasources/local/demo_data_source.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Drives the whole customer journey through the real app:
