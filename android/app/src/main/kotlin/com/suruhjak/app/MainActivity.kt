@@ -1,4 +1,4 @@
-package com.msdvbuild.food
+package com.suruhjak.app
 
 import io.flutter.embedding.android.FlutterActivity
 
