@@ -2,7 +2,7 @@ name: suruh
 description: >-
   SURUH Frontend - Platform Jasa On-Demand Pontianak ("Ada urusan? Suruh kami").
   Frontend untuk Django REST API backend di suruh_backend/compose.yaml.
-version: 1.0.0+1
+version: 1.0.0+2
 publish_to: 'none'
 
 environment:
