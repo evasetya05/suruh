@@ -38,8 +38,10 @@ dependencies:
   uuid: ^4.5.1
   collection: ^1.18.0
 
-  # Local persistence / offline support
+  # Local persistence / offline support (SQLite & SharedPreferences)
   shared_preferences: ^2.3.2
+  sqflite: ^2.4.1
+  path: ^1.9.0
 
   # Connectivity (offline detection)
   connectivity_plus: ^6.0.5

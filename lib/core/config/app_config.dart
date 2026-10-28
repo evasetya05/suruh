@@ -22,7 +22,7 @@ class AppConfig {
     this.appName = 'SURUH',
     this.tagline = 'Ada urusan? Suruh kami',
     this.publisher = 'SURUH Pontianak',
-    this.articleUrl = 'http://localhost:8019/api/docs/',
+    this.articleUrl = 'https://suruhjak.teknusa.com/api/docs/',
     this.currencySymbol = 'Rp',
     this.currencyLocale = 'id_ID',
     this.customApiBaseUrl,
@@ -45,20 +45,15 @@ class AppConfig {
   final String currencySymbol;
   final String currencyLocale;
 
-  /// Explicit API Base URL override (e.g. "http://192.168.1.100:8019").
+  /// Explicit API Base URL override (e.g. "https://suruhjak.teknusa.com").
   final String? customApiBaseUrl;
 
-  /// Returns the effective API Base URL pointing to suruh_backend.
-  /// Matches compose.yaml port 8019:8000.
+  /// Returns the effective API Base URL pointing to the SURUH production backend.
   String get apiBaseUrl {
     if (customApiBaseUrl != null && customApiBaseUrl!.trim().isNotEmpty) {
       return customApiBaseUrl!.trim().replaceAll(RegExp(r'/+$'), '');
     }
-    if (kIsWeb) return 'http://localhost:8019';
-    if (defaultTargetPlatform == TargetPlatform.android) {
-      return 'http://10.0.2.2:8019';
-    }
-    return 'http://localhost:8019';
+    return 'https://suruhjak.teknusa.com';
   }
 
   final Duration simulatedLatency;
