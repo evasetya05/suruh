@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:developer' as developer;
 
 import '../../core/network/suruh_api_client.dart';
+import '../../core/storage/app_database.dart';
 import '../../core/storage/local_storage.dart';
 import '../../core/utils/result.dart';
 import '../../domain/entities/address.dart';
@@ -12,18 +13,22 @@ import '../datasources/local/demo_data_source.dart';
 import '../models/order_model.dart';
 import 'order_repository_impl.dart';
 
-/// Order repository connected to the SURUH Django REST API (/api/v1/orders/).
+/// Order repository connected to the SURUH Django REST API (/api/v1/orders/),
+/// with SQLite caching for fast offline access and minimal server load.
 class SuruhOrderRepository implements OrderRepository {
   SuruhOrderRepository({
     required SuruhApiClient api,
     required LocalStorage storage,
     required DemoDataSource fallbackSource,
+    AppDatabase? database,
   })  : _api = api,
         _storage = storage,
+        _database = database ?? AppDatabase.instance,
         _fallbackRepo = OrderRepositoryImpl(remote: fallbackSource);
 
   final SuruhApiClient _api;
   final LocalStorage _storage;
+  final AppDatabase _database;
   final OrderRepositoryImpl _fallbackRepo;
 
   final Map<String, StreamController<Order>> _orderStreams =
@@ -466,6 +471,7 @@ class SuruhOrderRepository implements OrderRepository {
       orders.insert(0, model.toJson());
     }
     await _storage.writeJsonList(LocalStorage.kOrders, orders);
+    await _database.cacheOrder(model.toJson());
   }
 
   Order? _readOrderLocally(String orderId) {

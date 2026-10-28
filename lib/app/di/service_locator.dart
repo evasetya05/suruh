@@ -3,6 +3,7 @@ import 'package:get_it/get_it.dart';
 import '../../core/config/app_config.dart';
 import '../../core/network/connectivity_service.dart';
 import '../../core/network/suruh_api_client.dart';
+import '../../core/storage/app_database.dart';
 import '../../core/storage/local_storage.dart';
 import '../../data/datasources/local/demo_data_source.dart';
 import '../../data/datasources/remote/firestore_data_source.dart';
@@ -47,8 +48,11 @@ abstract final class ServiceLocator {
   static Future<void> init() async {
     // --- Core services ------------------------------------------------------
     final LocalStorage storage = await LocalStorage.create();
+    await AppDatabase.instance.init();
+
     sl
       ..registerSingleton<LocalStorage>(storage)
+      ..registerSingleton<AppDatabase>(AppDatabase.instance)
       ..registerLazySingleton<ConnectivityService>(ConnectivityService.new)
       ..registerLazySingleton<SuruhApiClient>(
         () => SuruhApiClient(storage: sl<LocalStorage>()),
@@ -68,7 +72,7 @@ abstract final class ServiceLocator {
     //
     // The repository interface is the swap point.
     // By default, it connects to the live SURUH Django REST Framework backend
-    // on compose.yaml (port 8019), with graceful fallback.
+    // at https://suruhjak.teknusa.com/ with SQLite local database caching.
     sl
       ..registerLazySingleton<AuthRepository>(
         () => useSuruhApi
@@ -93,6 +97,7 @@ abstract final class ServiceLocator {
                 storage: sl<LocalStorage>(),
                 connectivity: sl<ConnectivityService>(),
                 fallbackSource: sl<DemoDataSource>(),
+                database: sl<AppDatabase>(),
               )
             : CatalogRepositoryImpl(
                 remote: sl<DemoDataSource>(),
@@ -109,6 +114,7 @@ abstract final class ServiceLocator {
                 api: sl<SuruhApiClient>(),
                 storage: sl<LocalStorage>(),
                 fallbackSource: sl<DemoDataSource>(),
+                database: sl<AppDatabase>(),
               )
             : OrderRepositoryImpl(remote: sl<DemoDataSource>()),
       )

@@ -3,6 +3,7 @@ import 'dart:async';
 import '../../core/error/exceptions.dart';
 import '../../core/network/connectivity_service.dart';
 import '../../core/network/suruh_api_client.dart';
+import '../../core/storage/app_database.dart';
 import '../../core/storage/local_storage.dart';
 import '../../core/utils/result.dart';
 import '../../domain/entities/address.dart';
@@ -14,22 +15,26 @@ import '../../domain/repositories/catalog_repository.dart';
 import '../datasources/local/demo_data_source.dart';
 
 /// Catalog repository implementation that pulls dynamic categories and on-demand
-/// services from the SURUH Django backend (`suruh_backend/compose.yaml`).
+/// services from the SURUH Django backend (`https://suruhjak.teknusa.com/`),
+/// with SQLite local database caching for cost savings, instant load, and offline use.
 class SuruhCatalogRepository implements CatalogRepository {
   SuruhCatalogRepository({
     required SuruhApiClient api,
     required LocalStorage storage,
     required ConnectivityService connectivity,
     required DemoDataSource fallbackSource,
+    AppDatabase? database,
   })  : _api = api,
         _storage = storage,
         _connectivity = connectivity,
-        _fallback = fallbackSource;
+        _fallback = fallbackSource,
+        _database = database ?? AppDatabase.instance;
 
   final SuruhApiClient _api;
   final LocalStorage _storage;
   final ConnectivityService _connectivity;
   final DemoDataSource _fallback;
+  final AppDatabase _database;
 
   List<FoodCategory>? _categoriesCache;
   List<Restaurant>? _restaurantsCache;
@@ -42,14 +47,33 @@ class SuruhCatalogRepository implements CatalogRepository {
         return _categoriesCache!;
       }
 
+      // 1. Cek cache SQLite terlebih dahulu untuk performa instan & hemat bandwidth API
+      final List<Map<String, dynamic>> sqliteCached = await _database.getCachedCategories();
+      if (sqliteCached.isNotEmpty) {
+        _categoriesCache = sqliteCached.map((Map<String, dynamic> c) {
+          final String name = c['name'] as String? ?? 'Layanan';
+          final String slug = c['slug'] as String? ?? c['id'].toString();
+          final int count = c['active_services_count'] as int? ?? c['item_count'] as int? ?? 1;
+          return FoodCategory(
+            id: slug,
+            name: name,
+            emoji: _categoryEmoji(name, slug),
+            itemCount: count,
+          );
+        }).toList();
+      }
+
+      // 2. Refresh dari backend live bila memungkinkan
       try {
         final List<dynamic> raw = await _api.getCategories();
         if (raw.isNotEmpty) {
-          final List<FoodCategory> mapped = raw.map((dynamic item) {
-            final Map<String, dynamic> c = item as Map<String, dynamic>;
+          final List<Map<String, dynamic>> maps = raw.cast<Map<String, dynamic>>();
+          await _database.cacheCategories(maps); // Simpan ke SQLite
+
+          final List<FoodCategory> mapped = maps.map((Map<String, dynamic> c) {
             final String name = c['name'] as String? ?? 'Layanan';
             final String slug = c['slug'] as String? ?? c['id'].toString();
-            final int count = c['active_services_count'] as int? ?? 1;
+            final int count = c['active_services_count'] as int? ?? c['item_count'] as int? ?? 1;
             return FoodCategory(
               id: slug,
               name: name,
@@ -61,7 +85,10 @@ class SuruhCatalogRepository implements CatalogRepository {
           return mapped;
         }
       } catch (_) {
-        // Backend offline or empty
+        // Backend offline atau error, jika sudah ada cache SQLite kembalikan cache
+        if (_categoriesCache != null && _categoriesCache!.isNotEmpty) {
+          return _categoriesCache!;
+        }
       }
 
       // Default curated categories for SURUH Pontianak
@@ -245,43 +272,29 @@ class SuruhCatalogRepository implements CatalogRepository {
       return _servicesCache!;
     }
 
+    // 1. Cek cache SQLite terlebih dahulu untuk performa instan & hemat bandwidth
+    final List<Map<String, dynamic>> sqliteCached = await _database.getCachedServices();
+    if (sqliteCached.isNotEmpty) {
+      _servicesCache = _mapServicesList(sqliteCached);
+    }
+
+    // 2. Fetch live data dari server https://suruhjak.teknusa.com/
     try {
       final List<dynamic> raw = await _api.getServices();
       if (raw.isNotEmpty) {
-        final List<FoodItem> items = raw.map((dynamic item) {
-          final Map<String, dynamic> s = item as Map<String, dynamic>;
-          final String id = s['id']?.toString() ?? s['slug']?.toString() ?? 'svc';
-          final String name = s['name'] as String? ?? 'Layanan SURUH';
-          final String catName = s['category_name'] as String? ?? 'Umum';
-          final String catSlug = s['category_slug'] as String? ?? 'umum';
-          final String desc = s['short_description'] as String? ?? s['description'] as String? ?? '';
-          
-          double price = 15000.0;
-          if (s['pricing_configuration'] is Map) {
-            final Map<String, dynamic> p = s['pricing_configuration'] as Map<String, dynamic>;
-            price = (p['base_price'] as num?)?.toDouble() ?? 15000.0;
-          }
+        final List<Map<String, dynamic>> maps = raw.cast<Map<String, dynamic>>();
+        await _database.cacheServices(maps); // Simpan ke SQLite lokal
 
-          return FoodItem(
-            id: id,
-            restaurantId: 'prov-$catSlug',
-            restaurantName: 'SURUH $catName Pontianak',
-            name: name,
-            description: desc,
-            priceMyr: price,
-            categoryId: catSlug,
-            emoji: _categoryEmoji(name, catSlug),
-            rating: 4.9,
-            reviewCount: 38,
-            isPopular: true,
-            isAvailable: true,
-          );
-        }).toList();
-
+        final List<FoodItem> items = _mapServicesList(maps);
         _servicesCache = items;
         return items;
       }
     } catch (_) {
+      // Backend offline atau error, jika sudah ada cache SQLite kembalikan cache
+      if (_servicesCache != null && _servicesCache!.isNotEmpty) {
+        return _servicesCache!;
+      }
+
       if (!(await _connectivity.isOnline)) {
         final List<FoodItem> fallbackItems = await _fallback.getFoods();
         if (fallbackItems.isNotEmpty) {
@@ -294,6 +307,37 @@ class SuruhCatalogRepository implements CatalogRepository {
     final List<FoodItem> defaults = _defaultPontianakServices();
     _servicesCache = defaults;
     return defaults;
+  }
+
+  List<FoodItem> _mapServicesList(List<Map<String, dynamic>> rawList) {
+    return rawList.map((Map<String, dynamic> s) {
+      final String id = s['id']?.toString() ?? s['slug']?.toString() ?? 'svc';
+      final String name = s['name'] as String? ?? 'Layanan SURUH';
+      final String catName = s['category_name'] as String? ?? 'Umum';
+      final String catSlug = s['category_slug'] as String? ?? 'umum';
+      final String desc = s['short_description'] as String? ?? s['description'] as String? ?? '';
+
+      double price = 15000.0;
+      if (s['pricing_configuration'] is Map) {
+        final Map<String, dynamic> p = s['pricing_configuration'] as Map<String, dynamic>;
+        price = (p['base_price'] as num?)?.toDouble() ?? 15000.0;
+      }
+
+      return FoodItem(
+        id: id,
+        restaurantId: 'prov-$catSlug',
+        restaurantName: 'SURUH $catName Pontianak',
+        name: name,
+        description: desc,
+        priceMyr: price,
+        categoryId: catSlug,
+        emoji: _categoryEmoji(name, catSlug),
+        rating: 4.9,
+        reviewCount: 38,
+        isPopular: true,
+        isAvailable: true,
+      );
+    }).toList();
   }
 
   List<Restaurant> _buildProvidersFromServices(List<dynamic> services) {

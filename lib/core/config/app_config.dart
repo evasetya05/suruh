@@ -1,5 +1,3 @@
-import 'package:flutter/foundation.dart';
-
 /// Which backend implementation the repositories are bound to.
 enum Backend {
   /// SURUH Django REST Framework API (suruh_backend/compose.yaml on port 8019)
