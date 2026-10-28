@@ -17,3 +17,13 @@ class FoodCategory extends Equatable {
   @override
   List<Object?> get props => <Object?>[id, name, emoji, itemCount];
 }
+
+const List<FoodCategory> kServiceCategories = <FoodCategory>[
+  FoodCategory(id: 'titip-belanja', name: 'Titip & Belanja', emoji: '🛒'),
+  FoodCategory(id: 'antar-dokumen', name: 'Antar Dokumen', emoji: '📄'),
+  FoodCategory(id: 'bantu-antre', name: 'Bantu Antre & Urusan', emoji: '⏳'),
+  FoodCategory(id: 'bersih-rumah', name: 'Bersih Rumah & AC', emoji: '🧹'),
+  FoodCategory(id: 'angkut-barang', name: 'Angkut Barang & Pindahan', emoji: '🚚'),
+  FoodCategory(id: 'servis-elektronik', name: 'Servis & Perbaikan', emoji: '🔧'),
+  FoodCategory(id: 'umum', name: 'Layanan Umum', emoji: '⚡'),
+];

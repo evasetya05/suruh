@@ -2,10 +2,7 @@ import 'package:equatable/equatable.dart';
 
 import 'address.dart';
 
-/// Which app experience a signed-in account sees.
-///
-/// The demo ships all three in one binary so a reviewer can switch personas
-/// without re-installing.
+/// Defines the role assigned to a user account (Customer, Partner, Driver).
 enum UserRole {
   customer('Customer'),
   restaurantPartner('Restaurant partner'),
@@ -54,10 +51,10 @@ class User extends Equatable {
 
   Address? get defaultAddress {
     if (addresses.isEmpty) return null;
-    return addresses.firstWhere(
-      (Address a) => a.isDefault,
-      orElse: () => addresses.first,
-    );
+    for (final Address a in addresses) {
+      if (a.isDefault) return a;
+    }
+    return addresses.first;
   }
 
   String get initials {

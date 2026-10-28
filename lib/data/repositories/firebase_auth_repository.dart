@@ -105,18 +105,6 @@ class FirebaseAuthRepository implements AuthRepository {
     });
   }
 
-  /// Demo personas do not exist in a real Firebase project. Rather than
-  /// silently signing in as the wrong account, this fails loudly with guidance.
-  @override
-  Future<Result<User>> signInAsDemo(UserRole role) {
-    return guard<User>(() async {
-      throw const AuthException(
-        'Demo personas are only available on the local demo backend. '
-        'Sign in with a real account, or set AppConfig.backend to Backend.demo.',
-      );
-    });
-  }
-
   @override
   Future<Result<void>> signOut() {
     return guard<void>(() async {

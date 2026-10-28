@@ -236,11 +236,11 @@ class _RiderCard extends StatelessWidget {
             ),
           ),
           IconButton.filledTonal(
-            tooltip: 'Call rider',
+            tooltip: 'Hubungi kurir',
             onPressed: () => ScaffoldMessenger.of(context)
               ..hideCurrentSnackBar()
               ..showSnackBar(
-                SnackBar(content: Text('Calling ${rider.name} (demo action)')),
+                SnackBar(content: Text('Menghubungi kurir: ${rider.name} (${rider.phone})')),
               ),
             icon: const Icon(Icons.phone_rounded, size: 20),
           ),

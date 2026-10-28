@@ -7,7 +7,6 @@ import '../../core/utils/result.dart';
 import '../../domain/entities/address.dart';
 import '../../domain/entities/user.dart';
 import '../../domain/repositories/auth_repository.dart';
-import '../datasources/local/seed/seed_users.dart';
 import '../models/user_model.dart';
 
 /// Authentication repository connected directly to SURUH Django REST API backend
@@ -100,86 +99,6 @@ class SuruhAuthRepository implements AuthRepository {
   }
 
   @override
-  Future<Result<User>> signInAsDemo(UserRole role) {
-    return guard<User>(() async {
-      // Pre-configured persona accounts for quick testing
-      final (String phone, String name, String email) = switch (role) {
-        UserRole.customer => (
-            '081211112222',
-            'Rian Pontianak',
-            'customer@suruh.id',
-          ),
-        UserRole.restaurantPartner => (
-            '081222223333',
-            'Mitra Merchant Khatulistiwa',
-            'merchant@suruh.id',
-          ),
-        UserRole.deliveryPartner => (
-            '081233334444',
-            'Joko Driver Suruh',
-            'driver@suruh.id',
-          ),
-      };
-
-      try {
-        // Try logging in to real backend first
-        final Map<String, dynamic> data = await _api.login(
-          phoneNumber: phone,
-          password: kDemoPassword,
-        );
-        final User user = _mapBackendUser(data['user'] as Map<String, dynamic>);
-        await _persist(user);
-        return user;
-      } catch (_) {
-        // If not registered yet on this backend instance, auto-register persona
-        try {
-          final Map<String, dynamic> data = await _api.register(
-            fullName: name,
-            phoneNumber: phone,
-            password: kDemoPassword,
-            email: email,
-            role: switch (role) {
-              UserRole.deliveryPartner => 'driver',
-              UserRole.restaurantPartner => 'merchant',
-              UserRole.customer => 'customer',
-            },
-          );
-          final User user = _mapBackendUser(data['user'] as Map<String, dynamic>);
-          await _persist(user);
-          return user;
-        } catch (_) {
-          // If backend connection fails, provide offline persona session
-          final UserModel fallback = UserModel(
-            id: 'suruh-${role.name}',
-            name: name,
-            email: email,
-            phone: phone,
-            role: role,
-            avatarEmoji: role == UserRole.deliveryPartner ? '🛵' : '🙂',
-            addresses: const <Address>[
-              Address(
-                id: 'addr-ptk-1',
-                label: AddressLabel.home,
-                line1: 'Jl. Gajah Mada No. 12',
-                line2: 'Blok B-4',
-                city: 'Pontianak',
-                state: 'Kalimantan Barat',
-                postcode: '78121',
-                isDefault: true,
-              ),
-            ],
-            loyaltyPoints: 100,
-            memberTier: 'Suruh Prioritas',
-            createdAt: DateTime.now(),
-          );
-          await _persist(fallback);
-          return fallback;
-        }
-      }
-    });
-  }
-
-  @override
   Future<Result<void>> signOut() {
     return guard<void>(() async {
       await _api.logout();
@@ -247,16 +166,7 @@ class SuruhAuthRepository implements AuthRepository {
 
   /// Normalizes an input that might be an email or raw phone to Indonesian format
   String _normalizeIdentifier(String input) {
-    final String clean = input.trim();
-    if (!clean.contains('@')) {
-      // Format to 08... or +628...
-      return clean;
-    }
-    // If it's a known demo email, map to default phone
-    if (clean.contains('customer')) return '081211112222';
-    if (clean.contains('merchant') || clean.contains('restaurant')) return '081222223333';
-    if (clean.contains('driver') || clean.contains('rider')) return '081233334444';
-    return clean;
+    return input.trim();
   }
 
   User _mapBackendUser(Map<String, dynamic> json) {

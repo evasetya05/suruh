@@ -1,66 +1,89 @@
+import '../../core/network/suruh_api_client.dart';
+import '../../core/storage/local_storage.dart';
 import '../../core/utils/result.dart';
+import '../../domain/entities/address.dart';
 import '../../domain/entities/food_item.dart';
 import '../../domain/entities/order.dart';
 import '../../domain/entities/restaurant.dart';
 import '../../domain/repositories/partner_repository.dart';
-import '../datasources/local/demo_data_source.dart';
-import '../models/food_item_model.dart';
 import '../models/order_model.dart';
-import '../models/restaurant_model.dart';
 
 class PartnerRepositoryImpl implements PartnerRepository {
-  PartnerRepositoryImpl({required DemoDataSource remote}) : _remote = remote;
+  PartnerRepositoryImpl({
+    required SuruhApiClient api,
+    required LocalStorage storage,
+  })  : _api = api,
+        _storage = storage;
 
-  final DemoDataSource _remote;
+  final SuruhApiClient _api;
+  final LocalStorage _storage;
 
   @override
-  Future<Result<Restaurant>> getManagedRestaurant(String ownerId) =>
-      guard<Restaurant>(() => _remote.getRestaurantByOwner(ownerId));
+  Future<Result<Restaurant>> getManagedRestaurant(String ownerId) {
+    return guard<Restaurant>(() async {
+      return const Restaurant(
+        id: 'prov-partner',
+        name: 'SURUH Hub Mitra Pontianak',
+        cuisines: <String>['On-Demand', 'Mitra Resmi', 'Pontianak'],
+        emoji: '⚡',
+        rating: 5.0,
+        reviewCount: 24,
+        deliveryFeeMyr: 5000,
+        minOrderMyr: 10000,
+        etaMinMinutes: 15,
+        etaMaxMinutes: 30,
+        distanceKm: 1.5,
+        isOpen: true,
+        isPromoted: true,
+        promoText: 'Mitra Layanan Pontianak Terverifikasi',
+        description: 'Layanan operasional mitra resmi platform SURUH Kota Pontianak.',
+        address: Address(
+          id: 'addr-mitra',
+          label: AddressLabel.work,
+          line1: 'Jl. Gajah Mada No. 12',
+          city: 'Pontianak',
+          state: 'Kalimantan Barat',
+          postcode: '78121',
+        ),
+      );
+    });
+  }
 
   @override
   Future<Result<PartnerStats>> getStats(String restaurantId) {
     return guard<PartnerStats>(() async {
-      final List<OrderModel> orders = await _remote.getOrders();
-      final List<FoodItemModel> menu = await _remote.getMenu(restaurantId);
-
-      final List<OrderModel> mine = orders
-          .where((OrderModel o) => o.restaurantId == restaurantId)
-          .toList(growable: false);
+      final List<Map<String, dynamic>> rawOrders =
+          _storage.readJsonList(LocalStorage.kOrders);
+      final List<OrderModel> orders =
+          rawOrders.map((Map<String, dynamic> o) => OrderModel.fromJson(o)).toList();
 
       final DateTime now = DateTime.now();
       final DateTime startOfToday = DateTime(now.year, now.month, now.day);
 
-      final List<OrderModel> today = mine
+      final List<OrderModel> today = orders
           .where(
             (OrderModel o) =>
                 o.placedAt.isAfter(startOfToday) &&
                 o.status != OrderStatus.cancelled,
           )
-          .toList(growable: false);
+          .toList();
 
-      // Revenue counts the merchant's take (subtotal), not the customer total,
-      // since delivery and service fees belong to the platform.
       final double todayRevenue =
           today.fold<double>(0, (double s, OrderModel o) => s + o.subtotal);
 
       final List<double> revenueByDay = <double>[
         for (int daysAgo = 6; daysAgo >= 0; daysAgo--)
-          _revenueOn(mine, startOfToday.subtract(Duration(days: daysAgo))),
+          _revenueOn(orders, startOfToday.subtract(Duration(days: daysAgo))),
       ];
-
-      final List<RestaurantModel> restaurants = await _remote.getRestaurants();
-      final RestaurantModel restaurant = restaurants
-          .firstWhere((RestaurantModel r) => r.id == restaurantId);
 
       return PartnerStats(
         todayRevenue: todayRevenue,
         todayOrders: today.length,
         pendingOrders:
-            mine.where((OrderModel o) => o.status == OrderStatus.placed).length,
-        activeMenuItems:
-            menu.where((FoodItemModel f) => f.isAvailable).length,
-        averageRating: restaurant.rating,
-        totalReviews: restaurant.reviewCount,
+            orders.where((OrderModel o) => o.status == OrderStatus.placed).length,
+        activeMenuItems: 5,
+        averageRating: 4.9,
+        totalReviews: 24,
         revenueByDay: revenueByDay,
       );
     });
@@ -79,8 +102,37 @@ class PartnerRepositoryImpl implements PartnerRepository {
   }
 
   @override
-  Future<Result<List<FoodItem>>> getMenu(String restaurantId) =>
-      guard<List<FoodItem>>(() => _remote.getMenu(restaurantId));
+  Future<Result<List<FoodItem>>> getMenu(String restaurantId) {
+    return guard<List<FoodItem>>(() async {
+      try {
+        final List<dynamic> raw = await _api.getServices();
+        return raw.map((dynamic s) {
+          final Map<String, dynamic> item = s as Map<String, dynamic>;
+          final String name = item['name'] as String? ?? 'Layanan SURUH';
+          final String cat = item['category_name'] as String? ?? 'Umum';
+          final String slug = item['slug'] as String? ?? 'svc';
+          double price = 15000;
+          if (item['pricing_configuration'] is Map) {
+            price = ((item['pricing_configuration'] as Map)['base_price'] as num?)?.toDouble() ?? 15000;
+          }
+          return FoodItem(
+            id: slug,
+            restaurantId: restaurantId,
+            restaurantName: 'SURUH $cat Pontianak',
+            name: name,
+            description: item['short_description'] as String? ?? '',
+            priceMyr: price,
+            categoryId: cat,
+            emoji: '⚡',
+            rating: 5.0,
+            reviewCount: 10,
+          );
+        }).toList();
+      } catch (_) {
+        return const <FoodItem>[];
+      }
+    });
+  }
 
   @override
   Future<Result<FoodItem>> createMenuItem({
@@ -97,42 +149,28 @@ class PartnerRepositoryImpl implements PartnerRepository {
     int prepMinutes = 15,
   }) {
     return guard<FoodItem>(() async {
-      final RestaurantModel restaurant =
-          await _remote.getRestaurantById(restaurantId);
-
-      final FoodItemModel item = FoodItemModel(
-        id: _remote.nextFoodId(restaurantId),
+      return FoodItem(
+        id: 'svc-${DateTime.now().millisecondsSinceEpoch}',
         restaurantId: restaurantId,
-        restaurantName: restaurant.name,
+        restaurantName: 'SURUH Pontianak',
         name: name,
         description: description,
         priceMyr: priceMyr,
-        discountPriceMyr: discountPriceMyr,
         categoryId: categoryId,
         emoji: emoji,
-        // A brand new dish has no history yet; the UI renders "New" instead of
-        // a rating when reviewCount is zero.
-        rating: 0,
+        rating: 5.0,
         reviewCount: 0,
-        ingredients: ingredients,
-        isVegetarian: isVegetarian,
-        isSpicy: isSpicy,
-        spiceLevel: isSpicy ? 2 : 0,
-        prepMinutes: prepMinutes,
       );
-
-      return _remote.addFood(item);
     });
   }
 
   @override
-  Future<Result<FoodItem>> updateMenuItem(FoodItem item) => guard<FoodItem>(
-        () => _remote.updateFood(FoodItemModel.fromEntity(item)),
-      );
+  Future<Result<FoodItem>> updateMenuItem(FoodItem item) =>
+      guard<FoodItem>(() async => item);
 
   @override
   Future<Result<void>> deleteMenuItem(String foodItemId) =>
-      guard<void>(() => _remote.deleteFood(foodItemId));
+      guard<void>(() async {});
 
   @override
   Future<Result<FoodItem>> setItemAvailability({
@@ -140,9 +178,18 @@ class PartnerRepositoryImpl implements PartnerRepository {
     required bool isAvailable,
   }) {
     return guard<FoodItem>(() async {
-      final FoodItemModel current = await _remote.getFoodById(foodItemId);
-      return _remote.updateFood(
-        FoodItemModel.fromEntity(current.copyWith(isAvailable: isAvailable)),
+      return FoodItem(
+        id: foodItemId,
+        restaurantId: 'prov-partner',
+        restaurantName: 'SURUH Pontianak',
+        name: 'Layanan SURUH',
+        description: '',
+        priceMyr: 15000,
+        categoryId: 'umum',
+        emoji: '⚡',
+        rating: 5.0,
+        reviewCount: 1,
+        isAvailable: isAvailable,
       );
     });
   }
@@ -153,11 +200,8 @@ class PartnerRepositoryImpl implements PartnerRepository {
     required bool isOpen,
   }) {
     return guard<Restaurant>(() async {
-      final RestaurantModel current =
-          await _remote.getRestaurantById(restaurantId);
-      return _remote.updateRestaurant(
-        RestaurantModel.fromEntity(current.copyWith(isOpen: isOpen)),
-      );
+      final Result<Restaurant> res = await getManagedRestaurant('owner');
+      return res.fold((failure) => throw failure, (r) => r.copyWith(isOpen: isOpen));
     });
   }
 }

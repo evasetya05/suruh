@@ -1,29 +1,42 @@
+import '../../core/storage/local_storage.dart';
 import '../../core/utils/result.dart';
 import '../../domain/entities/review.dart';
 import '../../domain/repositories/review_repository.dart';
-import '../datasources/local/demo_data_source.dart';
 import '../models/review_model.dart';
 
 class ReviewRepositoryImpl implements ReviewRepository {
-  ReviewRepositoryImpl({required DemoDataSource remote}) : _remote = remote;
+  ReviewRepositoryImpl({required LocalStorage storage}) : _storage = storage;
 
-  final DemoDataSource _remote;
+  final LocalStorage _storage;
+  static const String _kReviewsKey = 'suruh_customer_reviews';
 
   @override
   Future<Result<List<Review>>> getReviewsForRestaurant(String restaurantId) =>
-      guard<List<Review>>(
-        () => _remote.getReviewsForRestaurant(restaurantId),
-      );
+      guard<List<Review>>(() async {
+        final List<ReviewModel> all = _loadReviews();
+        return all.where((ReviewModel r) => r.restaurantId == restaurantId).toList();
+      });
 
   @override
   Future<Result<List<Review>>> getReviewsForFoodItem(String foodItemId) =>
-      guard<List<Review>>(() => _remote.getReviewsForFood(foodItemId));
+      guard<List<Review>>(() async {
+        final List<ReviewModel> all = _loadReviews();
+        return all.where((ReviewModel r) => r.foodItemId == foodItemId).toList();
+      });
 
   @override
   Future<Result<RatingSummary>> getRatingSummary(String restaurantId) {
     return guard<RatingSummary>(() async {
-      final List<ReviewModel> reviews =
-          await _remote.getReviewsForRestaurant(restaurantId);
+      final List<ReviewModel> reviews = (await getReviewsForRestaurant(restaurantId))
+          .fold((_) => <Review>[], (List<Review> r) => r)
+          .cast<ReviewModel>();
+      if (reviews.isEmpty) {
+        return const RatingSummary(
+          average: 5.0,
+          total: 0,
+          distribution: <int, int>{5: 0, 4: 0, 3: 0, 2: 0, 1: 0},
+        );
+      }
       return RatingSummary.fromReviews(reviews);
     });
   }
@@ -50,7 +63,16 @@ class ReviewRepositoryImpl implements ReviewRepository {
         createdAt: DateTime.now(),
         orderedItems: orderedItems,
       );
-      return _remote.addReview(review);
+
+      final List<Map<String, dynamic>> raw = _storage.readJsonList(_kReviewsKey);
+      raw.insert(0, review.toJson());
+      await _storage.writeJsonList(_kReviewsKey, raw);
+      return review;
     });
+  }
+
+  List<ReviewModel> _loadReviews() {
+    final List<Map<String, dynamic>> raw = _storage.readJsonList(_kReviewsKey);
+    return raw.map((Map<String, dynamic> j) => ReviewModel.fromJson(j)).toList();
   }
 }

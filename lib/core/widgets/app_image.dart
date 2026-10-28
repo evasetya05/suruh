@@ -7,13 +7,12 @@ import '../theme/app_spacing.dart';
 
 /// Image surface used for every restaurant / dish visual in the app.
 ///
-/// The demo ships without bundled photography and must run fully offline, so
-/// when no [imageUrl] is available this renders a deterministic gradient plate
+/// When no [imageUrl] is available, this renders a deterministic gradient plate
 /// with the item's emoji. Same input always produces the same artwork, which
 /// makes the UI look designed rather than like a broken image.
 ///
-/// When a real backend supplies URLs (Firebase Storage), the same widget
-/// transparently switches to [CachedNetworkImage] with a shimmer placeholder
+/// When the backend supplies URLs, the same widget
+/// transparently uses [CachedNetworkImage] with a shimmer placeholder
 /// and falls back to the generated plate on error.
 class AppImage extends StatelessWidget {
   const AppImage({

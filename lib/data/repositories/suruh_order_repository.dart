@@ -9,9 +9,7 @@ import '../../domain/entities/address.dart';
 import '../../domain/entities/cart.dart';
 import '../../domain/entities/order.dart';
 import '../../domain/repositories/order_repository.dart';
-import '../datasources/local/demo_data_source.dart';
 import '../models/order_model.dart';
-import 'order_repository_impl.dart';
 
 /// Order repository connected to the SURUH Django REST API (/api/v1/orders/),
 /// with SQLite caching for fast offline access and minimal server load.
@@ -19,17 +17,14 @@ class SuruhOrderRepository implements OrderRepository {
   SuruhOrderRepository({
     required SuruhApiClient api,
     required LocalStorage storage,
-    required DemoDataSource fallbackSource,
     AppDatabase? database,
   })  : _api = api,
         _storage = storage,
-        _database = database ?? AppDatabase.instance,
-        _fallbackRepo = OrderRepositoryImpl(remote: fallbackSource);
+        _database = database ?? AppDatabase.instance;
 
   final SuruhApiClient _api;
   final LocalStorage _storage;
   final AppDatabase _database;
-  final OrderRepositoryImpl _fallbackRepo;
 
   final Map<String, StreamController<Order>> _orderStreams =
       <String, StreamController<Order>>{};
@@ -116,22 +111,10 @@ class SuruhOrderRepository implements OrderRepository {
         return placed;
       } catch (e) {
         developer.log(
-          'Order create on backend failed: $e. Falling back to local queue.',
+          'Order create on backend failed: $e',
           name: 'SuruhOrderRepository',
         );
-        // Fallback to local offline simulated order so user journey is never blocked
-        return (await _fallbackRepo.placeOrder(
-          cart: cart,
-          deliveryAddress: deliveryAddress,
-          paymentMethod: paymentMethod,
-          userId: userId,
-          customerName: customerName,
-          customerPhone: customerPhone,
-          riderNote: riderNote,
-        )).fold(
-          (failure) => throw failure,
-          (order) => order,
-        );
+        rethrow;
       }
     });
   }
@@ -144,18 +127,10 @@ class SuruhOrderRepository implements OrderRepository {
       if (cached != null) return cached;
 
       // 2. Try backend
-      try {
-        final Map<String, dynamic> data = await _api.getOrderDetail(orderId);
-        final Order mapped = _mapBackendOrder(data);
-        await _saveOrderLocally(mapped);
-        return mapped;
-      } catch (_) {
-        // Fallback
-        return (await _fallbackRepo.getOrderById(orderId)).fold(
-          (failure) => throw failure,
-          (order) => order,
-        );
-      }
+      final Map<String, dynamic> data = await _api.getOrderDetail(orderId);
+      final Order mapped = _mapBackendOrder(data);
+      await _saveOrderLocally(mapped);
+      return mapped;
     });
   }
 
@@ -166,14 +141,9 @@ class SuruhOrderRepository implements OrderRepository {
       () => StreamController<Order>.broadcast(),
     );
 
-    // Initial emit from cache or fallback
     final Order? cached = _readOrderLocally(orderId);
     if (cached != null) {
       controller.add(cached);
-    } else {
-      _fallbackRepo.watchOrder(orderId).listen((Order o) {
-        if (!controller.isClosed) controller.add(o);
-      });
     }
 
     // Background polling for live status if on real backend
@@ -194,6 +164,9 @@ class SuruhOrderRepository implements OrderRepository {
                     fallbackUserId: userId,
                   ))
               .toList();
+          for (final Order o in mapped) {
+            await _saveOrderLocally(o);
+          }
           return mapped;
         }
       } catch (_) {
@@ -202,35 +175,45 @@ class SuruhOrderRepository implements OrderRepository {
 
       // Check local cache
       final List<Order> cached = _loadAllOrdersLocally();
-      if (cached.isNotEmpty) {
-        return cached.where((Order o) => o.userId == userId).toList();
-      }
-
-      return (await _fallbackRepo.getOrdersForUser(userId)).fold(
-        (failure) => throw failure,
-        (orders) => orders,
-      );
+      return cached.where((Order o) => o.userId == userId).toList();
     });
   }
 
   @override
   Future<Result<List<Order>>> getOrdersForRestaurant(String restaurantId) {
-    return _fallbackRepo.getOrdersForRestaurant(restaurantId);
+    return guard<List<Order>>(() async {
+      final List<Order> all = _loadAllOrdersLocally();
+      return all.where((Order o) => o.restaurantId == restaurantId).toList();
+    });
   }
 
   @override
-  Stream<List<Order>> watchOrdersForRestaurant(String restaurantId) {
-    return _fallbackRepo.watchOrdersForRestaurant(restaurantId);
+  Stream<List<Order>> watchOrdersForRestaurant(String restaurantId) async* {
+    yield _loadAllOrdersLocally()
+        .where((Order o) => o.restaurantId == restaurantId)
+        .toList();
   }
 
   @override
   Future<Result<List<Order>>> getOrdersForRider(String riderId) {
-    return _fallbackRepo.getOrdersForRider(riderId);
+    return guard<List<Order>>(() async {
+      try {
+        final List<dynamic> raw = await _api.getDriverAvailableOrders();
+        final List<Order> orders = raw
+            .map((dynamic o) => _mapBackendOrder(o as Map<String, dynamic>))
+            .toList();
+        return orders;
+      } catch (_) {
+        final List<Order> cached = _loadAllOrdersLocally();
+        return cached.where((Order o) => o.rider?.id == riderId).toList();
+      }
+    });
   }
 
   @override
-  Stream<List<Order>> watchOrdersForRider(String riderId) {
-    return _fallbackRepo.watchOrdersForRider(riderId);
+  Stream<List<Order>> watchOrdersForRider(String riderId) async* {
+    final Result<List<Order>> initial = await getOrdersForRider(riderId);
+    yield initial.fold((_) => const <Order>[], (List<Order> o) => o);
   }
 
   @override

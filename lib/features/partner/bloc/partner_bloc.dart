@@ -18,9 +18,8 @@ part 'partner_state.dart';
 /// The restaurant partner side: dashboard stats, live order queues and menu
 /// management.
 ///
-/// Orders arrive through a stream rather than polling, so an order placed on
-/// the customer side shows up in the partner's "Incoming" queue within the same
-/// frame the demo backend emits it.
+/// Orders arrive through a stream or live updates from the backend, so an order placed on
+/// the customer side shows up in the partner's "Incoming" queue.
 class PartnerBloc extends Bloc<PartnerEvent, PartnerState> {
   PartnerBloc({
     required GetPartnerDashboard getDashboard,

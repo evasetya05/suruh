@@ -344,7 +344,7 @@ class _PaymentSection extends StatelessWidget {
         ],
         const SizedBox(height: AppSpacing.xs),
         Text(
-          'Payment is simulated in this demo - no card is charged.',
+          'Pembayaran tunai (COD) atau transfer langsung kepada kurir SURUH saat pesanan diantar.',
           style: theme.textTheme.bodySmall,
         ),
       ],

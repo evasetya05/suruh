@@ -13,8 +13,7 @@ part 'order_tracking_state.dart';
 /// Live order tracking.
 ///
 /// Loads once for the initial paint, then subscribes to the order stream so the
-/// timeline advances on its own as the backend (or the demo simulation) moves
-/// the order forward.
+/// timeline advances on its own as the backend moves the order forward.
 class OrderTrackingCubit extends Cubit<OrderTrackingState> {
   OrderTrackingCubit({
     required GetOrderById getOrderById,

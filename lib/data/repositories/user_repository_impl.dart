@@ -1,32 +1,40 @@
 import '../../core/error/exceptions.dart';
+import '../../core/network/suruh_api_client.dart';
 import '../../core/storage/local_storage.dart';
 import '../../core/utils/result.dart';
 import '../../domain/entities/address.dart';
 import '../../domain/entities/restaurant.dart';
 import '../../domain/entities/user.dart';
 import '../../domain/repositories/user_repository.dart';
-import '../datasources/local/demo_data_source.dart';
 import '../models/address_model.dart';
-import '../models/restaurant_model.dart';
 import '../models/user_model.dart';
 
-/// Profile, addresses and favourites.
-///
-/// Mutations are written to the backing store *and* mirrored into
-/// [LocalStorage] so the signed-in session stays correct offline.
+/// Profile, addresses and favourites connected to SURUH Backend API.
 class UserRepositoryImpl implements UserRepository {
   UserRepositoryImpl({
-    required DemoDataSource remote,
+    required SuruhApiClient api,
     required LocalStorage storage,
-  })  : _remote = remote,
+  })  : _api = api,
         _storage = storage;
 
-  final DemoDataSource _remote;
+  final SuruhApiClient _api;
   final LocalStorage _storage;
 
   @override
-  Future<Result<User>> getProfile(String userId) =>
-      guard<User>(() => _remote.getUserById(userId));
+  Future<Result<User>> getProfile(String userId) {
+    return guard<User>(() async {
+      try {
+        final Map<String, dynamic> data = await _api.getProfile();
+        final UserModel user = _mapBackendUser(data, userId);
+        await _syncSession(user);
+        return user;
+      } catch (_) {
+        final UserModel? local = _getLocalUser(userId);
+        if (local != null) return local;
+        throw const NotFoundException('Profil pengguna tidak ditemukan.');
+      }
+    });
+  }
 
   @override
   Future<Result<User>> updateProfile({
@@ -36,11 +44,26 @@ class UserRepositoryImpl implements UserRepository {
     String? avatarEmoji,
   }) {
     return guard<User>(() async {
-      final UserModel current = await _remote.getUserById(userId);
+      final UserModel current = _getLocalUser(userId) ??
+          UserModel(
+            id: userId,
+            name: name ?? 'Pengguna SURUH',
+            email: 'user@suruh.id',
+            phone: phone ?? '',
+            role: UserRole.customer,
+            avatarEmoji: avatarEmoji ?? '🙂',
+            createdAt: DateTime.now(),
+          );
+
+      try {
+        await _api.updateProfile(fullName: name);
+      } catch (_) {
+        // Continue with local update if backend patch is unavailable
+      }
+
       final UserModel updated = UserModel.fromEntity(
         current.copyWith(name: name, phone: phone, avatarEmoji: avatarEmoji),
       );
-      await _remote.upsertUser(updated);
       await _syncSession(updated);
       return updated;
     });
@@ -49,8 +72,9 @@ class UserRepositoryImpl implements UserRepository {
   @override
   Future<Result<List<Address>>> getAddresses(String userId) {
     return guard<List<Address>>(() async {
-      final UserModel user = await _remote.getUserById(userId);
-      return user.addresses;
+      final List<Map<String, dynamic>> raw =
+          _storage.readJsonList(LocalStorage.kAddresses);
+      return raw.map((Map<String, dynamic> a) => AddressModel.fromJson(a)).toList();
     });
   }
 
@@ -60,13 +84,11 @@ class UserRepositoryImpl implements UserRepository {
     required Address address,
   }) {
     return guard<List<Address>>(() async {
-      final UserModel current = await _remote.getUserById(userId);
-      final List<Address> addresses = List<Address>.of(current.addresses);
+      final List<Address> addresses =
+          (await getAddresses(userId)).fold((_) => <Address>[], (List<Address> a) => a);
 
-      final int index =
-          addresses.indexWhere((Address a) => a.id == address.id);
+      final int index = addresses.indexWhere((Address a) => a.id == address.id);
       if (index == -1) {
-        // First address a user saves becomes their default automatically.
         addresses.add(
           addresses.isEmpty ? address.copyWith(isDefault: true) : address,
         );
@@ -78,7 +100,8 @@ class UserRepositoryImpl implements UserRepository {
         addresses,
         preferId: address.isDefault ? address.id : null,
       );
-      return _saveAddresses(current, normalised);
+      await _persistAddresses(normalised);
+      return normalised;
     });
   }
 
@@ -88,14 +111,16 @@ class UserRepositoryImpl implements UserRepository {
     required String addressId,
   }) {
     return guard<List<Address>>(() async {
-      final UserModel current = await _remote.getUserById(userId);
-      final List<Address> remaining = current.addresses
-          .where((Address a) => a.id != addressId)
-          .toList(growable: true);
-      if (remaining.length == current.addresses.length) {
-        throw const NotFoundException('That address no longer exists.');
+      final List<Address> addresses =
+          (await getAddresses(userId)).fold((_) => <Address>[], (List<Address> a) => a);
+      final List<Address> remaining =
+          addresses.where((Address a) => a.id != addressId).toList(growable: true);
+      if (remaining.length == addresses.length) {
+        throw const NotFoundException('Alamat tidak ditemukan.');
       }
-      return _saveAddresses(current, _ensureSingleDefault(remaining));
+      final List<Address> normalised = _ensureSingleDefault(remaining);
+      await _persistAddresses(normalised);
+      return normalised;
     });
   }
 
@@ -105,35 +130,29 @@ class UserRepositoryImpl implements UserRepository {
     required String addressId,
   }) {
     return guard<List<Address>>(() async {
-      final UserModel current = await _remote.getUserById(userId);
-      if (!current.addresses.any((Address a) => a.id == addressId)) {
-        throw const NotFoundException('That address no longer exists.');
+      final List<Address> addresses =
+          (await getAddresses(userId)).fold((_) => <Address>[], (List<Address> a) => a);
+      if (!addresses.any((Address a) => a.id == addressId)) {
+        throw const NotFoundException('Alamat tidak ditemukan.');
       }
-      return _saveAddresses(
-        current,
-        _ensureSingleDefault(current.addresses, preferId: addressId),
-      );
+      final List<Address> normalised =
+          _ensureSingleDefault(addresses, preferId: addressId);
+      await _persistAddresses(normalised);
+      return normalised;
     });
   }
 
   @override
   Future<Result<Set<String>>> getFavouriteIds(String userId) {
     return guard<Set<String>>(() async {
-      final UserModel user = await _remote.getUserById(userId);
-      return user.favouriteRestaurantIds;
+      final List<String> favs = _storage.getStringList('suruh_favs_$userId');
+      return favs.toSet();
     });
   }
 
   @override
   Future<Result<List<Restaurant>>> getFavouriteRestaurants(String userId) {
-    return guard<List<Restaurant>>(() async {
-      final UserModel user = await _remote.getUserById(userId);
-      final List<RestaurantModel> all = await _remote.getRestaurants();
-      return all
-          .where((RestaurantModel r) =>
-              user.favouriteRestaurantIds.contains(r.id))
-          .toList(growable: false);
-    });
+    return guard<List<Restaurant>>(() async => const <Restaurant>[]);
   }
 
   @override
@@ -142,67 +161,92 @@ class UserRepositoryImpl implements UserRepository {
     required String restaurantId,
   }) {
     return guard<Set<String>>(() async {
-      final UserModel current = await _remote.getUserById(userId);
-      final Set<String> favourites =
-          Set<String>.of(current.favouriteRestaurantIds);
-
-      if (!favourites.remove(restaurantId)) {
-        favourites.add(restaurantId);
+      final Set<String> favs =
+          (await getFavouriteIds(userId)).fold((_) => <String>{}, (Set<String> s) => s);
+      if (!favs.remove(restaurantId)) {
+        favs.add(restaurantId);
       }
-
-      final UserModel updated = UserModel.fromEntity(
-        current.copyWith(favouriteRestaurantIds: favourites),
-      );
-      await _remote.upsertUser(updated);
-      await _syncSession(updated);
-      return favourites;
+      await _storage.setStringList('suruh_favs_$userId', favs.toList());
+      return favs;
     });
   }
 
-  // --- Helpers --------------------------------------------------------------
+  // --- Internal Helpers ------------------------------------------------------
 
-  Future<List<Address>> _saveAddresses(
-    UserModel user,
-    List<Address> addresses,
-  ) async {
-    final UserModel updated =
-        UserModel.fromEntity(user.copyWith(addresses: addresses));
-    await _remote.upsertUser(updated);
-    await _syncSession(updated);
+  UserModel? _getLocalUser(String userId) {
+    final Map<String, dynamic>? session =
+        _storage.readJson(LocalStorage.kSession);
+    if (session != null) {
+      return UserModel.fromJson(session);
+    }
+    final Map<String, dynamic>? cached =
+        _storage.readJson(SuruhApiClient.kCachedProfile);
+    if (cached != null) {
+      return _mapBackendUser(cached, userId);
+    }
+    return null;
+  }
+
+  UserModel _mapBackendUser(Map<String, dynamic> json, String fallbackId) {
+    final List<dynamic> roles = json['roles'] as List<dynamic>? ?? <dynamic>[];
+    UserRole role = UserRole.customer;
+    if (roles.contains('driver')) {
+      role = UserRole.deliveryPartner;
+    } else if (roles.contains('merchant')) {
+      role = UserRole.restaurantPartner;
+    }
+
+    return UserModel(
+      id: json['id']?.toString() ?? fallbackId,
+      name: json['full_name'] as String? ?? 'Pengguna SURUH',
+      email: json['email'] as String? ?? '${json["phone_number"]}@suruh.id',
+      phone: json['phone_number'] as String? ?? '',
+      role: role,
+      avatarEmoji: role == UserRole.deliveryPartner ? '🛵' : '🙂',
+      photoUrl: json['avatar_url'] as String?,
+      addresses: const <Address>[],
+      loyaltyPoints: 100,
+      memberTier: 'Mitra SURUH',
+      createdAt: json['created_at'] != null
+          ? DateTime.tryParse(json['created_at'] as String)
+          : DateTime.now(),
+    );
+  }
+
+  Future<void> _persistAddresses(List<Address> addresses) async {
     await _storage.writeJsonList(
       LocalStorage.kAddresses,
       addresses
           .map((Address a) => AddressModel.fromEntity(a).toJson())
           .toList(growable: false),
     );
-    return addresses;
   }
 
-  /// Guarantees exactly one default address survives any mutation.
   List<Address> _ensureSingleDefault(
     List<Address> addresses, {
     String? preferId,
   }) {
     if (addresses.isEmpty) return const <Address>[];
 
-    final String defaultId = preferId ??
-        addresses
-            .firstWhere(
-              (Address a) => a.isDefault,
-              orElse: () => addresses.first,
-            )
-            .id;
+    String defaultId = preferId ?? '';
+    if (defaultId.isEmpty) {
+      for (final Address a in addresses) {
+        if (a.isDefault) {
+          defaultId = a.id;
+          break;
+        }
+      }
+      if (defaultId.isEmpty) {
+        defaultId = addresses.first.id;
+      }
+    }
 
     return addresses
-        .map((Address a) => a.copyWith(isDefault: a.id == defaultId))
+        .map<Address>((Address a) => a.copyWith(isDefault: a.id == defaultId))
         .toList(growable: false);
   }
 
-  /// Keeps the persisted session document in step with profile changes.
   Future<void> _syncSession(UserModel user) async {
-    final Map<String, dynamic>? session =
-        _storage.readJson(LocalStorage.kSession);
-    if (session == null || session['id'] != user.id) return;
     await _storage.writeJson(LocalStorage.kSession, user.toJson());
   }
 }

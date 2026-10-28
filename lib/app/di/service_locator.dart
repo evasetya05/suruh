@@ -5,13 +5,9 @@ import '../../core/network/connectivity_service.dart';
 import '../../core/network/suruh_api_client.dart';
 import '../../core/storage/app_database.dart';
 import '../../core/storage/local_storage.dart';
-import '../../data/datasources/local/demo_data_source.dart';
 import '../../data/datasources/remote/firestore_data_source.dart';
-import '../../data/repositories/auth_repository_impl.dart';
 import '../../data/repositories/cart_repository_impl.dart';
-import '../../data/repositories/catalog_repository_impl.dart';
 import '../../data/repositories/firebase_auth_repository.dart';
-import '../../data/repositories/order_repository_impl.dart';
 import '../../data/repositories/partner_repository_impl.dart';
 import '../../data/repositories/review_repository_impl.dart';
 import '../../data/repositories/suruh_auth_repository.dart';
@@ -38,12 +34,7 @@ final GetIt sl = GetIt.instance;
 /// Composition root.
 ///
 /// Registration order is services -> data sources -> repositories -> use cases,
-/// which mirrors the dependency direction of the architecture: nothing in an
-/// inner layer knows about anything registered after it.
-///
-/// Blocs are deliberately NOT registered here. They are created by
-/// `BlocProvider` at the widget that owns them so their lifetime matches the
-/// screen's, and they resolve their use cases from this locator.
+/// which mirrors the dependency direction of the architecture.
 abstract final class ServiceLocator {
   static Future<void> init() async {
     // --- Core services ------------------------------------------------------
@@ -59,76 +50,59 @@ abstract final class ServiceLocator {
       );
 
     // --- Data sources -------------------------------------------------------
-    sl.registerLazySingleton<DemoDataSource>(() => DemoDataSource.instance);
-
     final bool useFirebase = AppConfig.instance.backend == Backend.firebase;
-    final bool useSuruhApi = AppConfig.instance.backend == Backend.suruhApi;
 
     if (useFirebase) {
       sl.registerLazySingleton<FirestoreDataSource>(FirestoreDataSource.new);
     }
 
     // --- Repositories -------------------------------------------------------
-    //
-    // The repository interface is the swap point.
-    // By default, it connects to the live SURUH Django REST Framework backend
+    // Connects to the live SURUH Django REST Framework backend
     // at https://suruhjak.teknusa.com/ with SQLite local database caching.
     sl
       ..registerLazySingleton<AuthRepository>(
-        () => useSuruhApi
-            ? SuruhAuthRepository(
-                api: sl<SuruhApiClient>(),
+        () => useFirebase
+            ? FirebaseAuthRepository(
+                remote: sl<FirestoreDataSource>(),
                 storage: sl<LocalStorage>(),
               )
-            : useFirebase
-                ? FirebaseAuthRepository(
-                    remote: sl<FirestoreDataSource>(),
-                    storage: sl<LocalStorage>(),
-                  )
-                : AuthRepositoryImpl(
-                    remote: sl<DemoDataSource>(),
-                    storage: sl<LocalStorage>(),
-                  ),
+            : SuruhAuthRepository(
+                api: sl<SuruhApiClient>(),
+                storage: sl<LocalStorage>(),
+              ),
       )
       ..registerLazySingleton<CatalogRepository>(
-        () => useSuruhApi
-            ? SuruhCatalogRepository(
-                api: sl<SuruhApiClient>(),
-                storage: sl<LocalStorage>(),
-                connectivity: sl<ConnectivityService>(),
-                fallbackSource: sl<DemoDataSource>(),
-                database: sl<AppDatabase>(),
-              )
-            : CatalogRepositoryImpl(
-                remote: sl<DemoDataSource>(),
-                storage: sl<LocalStorage>(),
-                connectivity: sl<ConnectivityService>(),
-              ),
+        () => SuruhCatalogRepository(
+          api: sl<SuruhApiClient>(),
+          storage: sl<LocalStorage>(),
+          connectivity: sl<ConnectivityService>(),
+          database: sl<AppDatabase>(),
+        ),
       )
       ..registerLazySingleton<CartRepository>(
         () => CartRepositoryImpl(storage: sl<LocalStorage>()),
       )
       ..registerLazySingleton<OrderRepository>(
-        () => useSuruhApi
-            ? SuruhOrderRepository(
-                api: sl<SuruhApiClient>(),
-                storage: sl<LocalStorage>(),
-                fallbackSource: sl<DemoDataSource>(),
-                database: sl<AppDatabase>(),
-              )
-            : OrderRepositoryImpl(remote: sl<DemoDataSource>()),
+        () => SuruhOrderRepository(
+          api: sl<SuruhApiClient>(),
+          storage: sl<LocalStorage>(),
+          database: sl<AppDatabase>(),
+        ),
       )
       ..registerLazySingleton<ReviewRepository>(
-        () => ReviewRepositoryImpl(remote: sl<DemoDataSource>()),
+        () => ReviewRepositoryImpl(storage: sl<LocalStorage>()),
       )
       ..registerLazySingleton<UserRepository>(
         () => UserRepositoryImpl(
-          remote: sl<DemoDataSource>(),
+          api: sl<SuruhApiClient>(),
           storage: sl<LocalStorage>(),
         ),
       )
       ..registerLazySingleton<PartnerRepository>(
-        () => PartnerRepositoryImpl(remote: sl<DemoDataSource>()),
+        () => PartnerRepositoryImpl(
+          api: sl<SuruhApiClient>(),
+          storage: sl<LocalStorage>(),
+        ),
       );
 
     _registerUseCases();
@@ -139,7 +113,6 @@ abstract final class ServiceLocator {
     sl
       ..registerFactory(() => SignIn(sl<AuthRepository>()))
       ..registerFactory(() => Register(sl<AuthRepository>()))
-      ..registerFactory(() => SignInAsDemo(sl<AuthRepository>()))
       ..registerFactory(() => SignOut(sl<AuthRepository>()))
       ..registerFactory(() => RestoreSession(sl<AuthRepository>()))
       ..registerFactory(() => SendPasswordReset(sl<AuthRepository>()));

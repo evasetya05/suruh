@@ -10,11 +10,8 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/validators.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_logo.dart';
-import '../../../core/widgets/article_credit.dart';
 import '../../../core/widgets/app_text_field.dart';
-import '../../../domain/entities/user.dart';
 import '../bloc/auth_bloc.dart';
-import 'widgets/demo_persona_picker.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -25,10 +22,8 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-  final TextEditingController _email =
-      TextEditingController(text: '081211112222');
-  final TextEditingController _password =
-      TextEditingController(text: 'demo1234');
+  final TextEditingController _email = TextEditingController();
+  final TextEditingController _password = TextEditingController();
 
   @override
   void dispose() {
@@ -162,17 +157,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: AppSpacing.xl),
-                      const _OrDivider(),
-                      const SizedBox(height: AppSpacing.xl),
-                      DemoPersonaPicker(
-                        enabled: !state.isSubmitting,
-                        onSelected: (UserRole role) => context
-                            .read<AuthBloc>()
-                            .add(AuthDemoSignInRequested(role)),
-                      ),
-                      const SizedBox(height: AppSpacing.xxl),
-                      const ArticleCredit(),
                     ],
                   ),
                 ),
@@ -193,33 +177,6 @@ class _Brand extends StatelessWidget {
     return AppLogoWordmark(
       title: AppConfig.instance.appName,
       subtitle: AppConfig.instance.tagline,
-    );
-  }
-}
-
-class _OrDivider extends StatelessWidget {
-  const _OrDivider();
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: <Widget>[
-        const Expanded(child: Divider()),
-        // Flexible so a long label or large text scale shrinks the label
-        // rather than overflowing the row.
-        Flexible(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-            child: Text(
-              'or explore a demo persona',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ),
-        ),
-        const Expanded(child: Divider()),
-      ],
     );
   }
 }

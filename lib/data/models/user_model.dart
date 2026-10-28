@@ -44,7 +44,7 @@ class UserModel extends User {
         avatarEmoji: json['avatarEmoji'] as String? ?? '🙂',
         photoUrl: json['photoUrl'] as String?,
         addresses: (json['addresses'] as List<dynamic>? ?? <dynamic>[])
-            .map((dynamic e) =>
+            .map<Address>((dynamic e) =>
                 AddressModel.fromJson(e as Map<String, dynamic>))
             .toList(growable: false),
         favouriteRestaurantIds:

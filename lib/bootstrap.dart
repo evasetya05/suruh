@@ -18,8 +18,7 @@ import 'firebase_options.dart';
 /// Boots the app.
 ///
 /// Order matters: config -> platform chrome -> optional Firebase -> DI graph ->
-/// `runApp`. Everything that can fail is contained so a missing Firebase
-/// project degrades to the demo backend instead of a black screen.
+/// `runApp`. Everything that can fail is contained.
 Future<void> bootstrap({AppConfig? config}) async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -68,9 +67,8 @@ Future<void> _initialiseFirebase() async {
   if (!DefaultFirebaseOptions.isConfigured) {
     developer.log(
       'Backend.firebase is selected but firebase_options.dart still holds '
-      'placeholder values. Run `flutterfire configure`. Falling back to the '
-      'demo backend.',
-      name: 'MSDevBuild Eats',
+      'placeholder values. Falling back to SURUH REST API backend.',
+      name: 'SURUH',
       level: 900,
     );
     AppConfig.override(const AppConfig());
@@ -85,8 +83,8 @@ Future<void> _initialiseFirebase() async {
     unawaited(PushNotificationService().initialise());
   } on Object catch (error, stackTrace) {
     developer.log(
-      'Firebase initialisation failed - continuing on the demo backend.',
-      name: 'MSDevBuild Eats',
+      'Firebase initialisation failed - continuing on SURUH REST API backend.',
+      name: 'SURUH',
       error: error,
       stackTrace: stackTrace,
       level: 1000,

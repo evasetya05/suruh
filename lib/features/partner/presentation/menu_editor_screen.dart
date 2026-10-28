@@ -9,7 +9,7 @@ import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_image.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/state_views.dart';
-import '../../../data/datasources/local/seed/seed_categories.dart';
+import '../../../domain/entities/food_category.dart';
 import '../../../domain/entities/food_item.dart';
 import '../../../domain/entities/user.dart';
 import '../../../domain/usecases/partner_usecases.dart';
@@ -346,12 +346,12 @@ class _EditorFormState extends State<_EditorForm> {
                 Wrap(
                   spacing: AppSpacing.sm,
                   runSpacing: AppSpacing.sm,
-                  children: kSeedCategories.map((dynamic category) {
+                  children: kServiceCategories.map((FoodCategory category) {
                     final bool selected = category.id == _categoryId;
                     return ChoiceChip(
                       selected: selected,
                       onSelected: (_) =>
-                          setState(() => _categoryId = category.id as String),
+                          setState(() => _categoryId = category.id),
                       label: Text('${category.emoji} ${category.name}'),
                       labelStyle: TextStyle(
                         color: selected ? Colors.white : null,

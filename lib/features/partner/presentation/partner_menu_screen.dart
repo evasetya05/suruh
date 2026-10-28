@@ -10,7 +10,7 @@ import '../../../core/utils/formatters.dart';
 import '../../../core/widgets/app_image.dart';
 import '../../../core/widgets/common_widgets.dart';
 import '../../../core/widgets/state_views.dart';
-import '../../../data/datasources/local/seed/seed_categories.dart';
+import '../../../domain/entities/food_category.dart';
 import '../../../domain/entities/food_item.dart';
 import '../../../domain/entities/user.dart';
 import '../../auth/bloc/auth_bloc.dart';
@@ -126,10 +126,10 @@ class _PartnerMenuView extends StatelessWidget {
     );
   }
 
-  String _categoryName(String categoryId) => kSeedCategories
+  String _categoryName(String categoryId) => kServiceCategories
       .firstWhere(
-        (dynamic c) => c.id == categoryId,
-        orElse: () => kSeedCategories.first,
+        (FoodCategory c) => c.id == categoryId,
+        orElse: () => kServiceCategories.first,
       )
       .name;
 }

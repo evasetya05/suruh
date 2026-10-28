@@ -53,10 +53,12 @@ class CheckoutBloc extends Bloc<CheckoutEvent, CheckoutState> {
           // single tap on "Place order".
           selectedAddress: addresses.isEmpty
               ? null
-              : addresses.firstWhere(
-                  (Address a) => a.isDefault,
-                  orElse: () => addresses.first,
-                ),
+              : () {
+                  for (final Address a in addresses) {
+                    if (a.isDefault) return a;
+                  }
+                  return addresses.first;
+                }(),
           clearError: true,
         ),
       ),

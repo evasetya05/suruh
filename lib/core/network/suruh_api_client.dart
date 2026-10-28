@@ -296,6 +296,33 @@ class SuruhApiClient {
     return response;
   }
 
+  /// Updates authenticated user profile on /api/v1/auth/profile/
+  Future<Map<String, dynamic>> updateProfile({
+    String? fullName,
+    String? email,
+    String? avatarUrl,
+  }) async {
+    final Map<String, dynamic> body = <String, dynamic>{};
+    if (fullName != null) body['full_name'] = fullName;
+    if (email != null) body['email'] = email;
+    if (avatarUrl != null) body['avatar_url'] = avatarUrl;
+
+    final Map<String, dynamic> response = await request(
+      method: 'PATCH',
+      path: '/api/v1/auth/profile/',
+      body: body,
+      requiresAuth: true,
+    ) as Map<String, dynamic>;
+
+    if (response['user'] is Map) {
+      await _storage.writeJson(
+        kCachedProfile,
+        response['user'] as Map<String, dynamic>,
+      );
+    }
+    return response;
+  }
+
   /// Logout and invalidate refresh token on backend.
   Future<void> logout() async {
     try {

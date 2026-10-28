@@ -27,11 +27,9 @@ class RiderCubit extends Cubit<RiderState> {
 
   StreamSubscription<List<Order>>? _subscription;
 
-  /// Rider ids in the seed data are `rd-*` while the login account is `u-rider`,
-  /// so the demo persona maps onto the first seeded rider.
-  static const String demoRiderId = 'rd-01';
+  static const String defaultRiderId = 'driver';
 
-  Future<void> start({String riderId = demoRiderId}) async {
+  Future<void> start({String riderId = defaultRiderId}) async {
     emit(state.copyWith(status: RiderStatus.loading, riderId: riderId));
 
     await _subscription?.cancel();

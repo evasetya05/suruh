@@ -84,15 +84,6 @@ class Register extends UseCase<User, RegisterParams> {
   }
 }
 
-class SignInAsDemo extends UseCase<User, UserRole> {
-  const SignInAsDemo(this._repository);
-
-  final AuthRepository _repository;
-
-  @override
-  Future<Result<User>> call(UserRole params) => _repository.signInAsDemo(params);
-}
-
 class SignOut extends UseCase<void, NoParams> {
   const SignOut(this._repository);
 

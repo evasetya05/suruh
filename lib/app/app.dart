@@ -46,7 +46,6 @@ class _SuruhAppState extends State<SuruhApp> {
     _authBloc = AuthBloc(
       signIn: sl<SignIn>(),
       register: sl<Register>(),
-      signInAsDemo: sl<SignInAsDemo>(),
       signOut: sl<SignOut>(),
       restoreSession: sl<RestoreSession>(),
       sendPasswordReset: sl<SendPasswordReset>(),

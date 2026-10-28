@@ -419,7 +419,7 @@ class _JobCard extends StatelessWidget {
                     ..showSnackBar(
                       SnackBar(
                         content: Text(
-                          'Calling ${order.customerName} (demo action)',
+                          'Menghubungi ${order.customerName} (${order.customerPhone})',
                         ),
                       ),
                     ),

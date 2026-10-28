@@ -12,7 +12,6 @@ import '../../domain/entities/food_item.dart';
 import '../../domain/entities/promo.dart';
 import '../../domain/entities/restaurant.dart';
 import '../../domain/repositories/catalog_repository.dart';
-import '../datasources/local/demo_data_source.dart';
 
 /// Catalog repository implementation that pulls dynamic categories and on-demand
 /// services from the SURUH Django backend (`https://suruhjak.teknusa.com/`),
@@ -22,18 +21,15 @@ class SuruhCatalogRepository implements CatalogRepository {
     required SuruhApiClient api,
     required LocalStorage storage,
     required ConnectivityService connectivity,
-    required DemoDataSource fallbackSource,
     AppDatabase? database,
   })  : _api = api,
         _storage = storage,
         _connectivity = connectivity,
-        _fallback = fallbackSource,
         _database = database ?? AppDatabase.instance;
 
   final SuruhApiClient _api;
   final LocalStorage _storage;
   final ConnectivityService _connectivity;
-  final DemoDataSource _fallback;
   final AppDatabase _database;
 
   List<FoodCategory>? _categoriesCache;
@@ -91,8 +87,7 @@ class SuruhCatalogRepository implements CatalogRepository {
         }
       }
 
-      // Default curated categories for SURUH Pontianak
-      return _defaultPontianakCategories();
+      return _categoriesCache ?? const <FoodCategory>[];
     });
   }
 
@@ -245,26 +240,35 @@ class SuruhCatalogRepository implements CatalogRepository {
       return _restaurantsCache!;
     }
 
+    if (!(await _connectivity.isOnline)) {
+      final List<Map<String, dynamic>> sqliteCached = await _database.getCachedServices();
+      if (sqliteCached.isNotEmpty) {
+        final List<Restaurant> providers = _buildProvidersFromServices(sqliteCached);
+        _restaurantsCache = providers;
+        return providers;
+      }
+    }
+
     try {
       final List<dynamic> servicesJson = await _api.getServices();
       if (servicesJson.isNotEmpty) {
+        final List<Map<String, dynamic>> maps = servicesJson.cast<Map<String, dynamic>>();
+        await _database.cacheServices(maps);
         final List<Restaurant> providers = _buildProvidersFromServices(servicesJson);
         _restaurantsCache = providers;
         return providers;
       }
     } catch (_) {
-      if (!(await _connectivity.isOnline)) {
-        final List<Restaurant> fallbackList = await _fallback.getRestaurants();
-        if (fallbackList.isNotEmpty) {
-          _restaurantsCache = fallbackList;
-          return fallbackList;
-        }
+      // Backend offline or error: check SQLite cache
+      final List<Map<String, dynamic>> sqliteCached = await _database.getCachedServices();
+      if (sqliteCached.isNotEmpty) {
+        final List<Restaurant> providers = _buildProvidersFromServices(sqliteCached);
+        _restaurantsCache = providers;
+        return providers;
       }
     }
 
-    final List<Restaurant> defaults = _defaultPontianakProviders();
-    _restaurantsCache = defaults;
-    return defaults;
+    return _restaurantsCache ?? const <Restaurant>[];
   }
 
   Future<List<FoodItem>> _loadOrFetchServices() async {
@@ -294,19 +298,9 @@ class SuruhCatalogRepository implements CatalogRepository {
       if (_servicesCache != null && _servicesCache!.isNotEmpty) {
         return _servicesCache!;
       }
-
-      if (!(await _connectivity.isOnline)) {
-        final List<FoodItem> fallbackItems = await _fallback.getFoods();
-        if (fallbackItems.isNotEmpty) {
-          _servicesCache = fallbackItems;
-          return fallbackItems;
-        }
-      }
     }
 
-    final List<FoodItem> defaults = _defaultPontianakServices();
-    _servicesCache = defaults;
-    return defaults;
+    return _servicesCache ?? const <FoodItem>[];
   }
 
   List<FoodItem> _mapServicesList(List<Map<String, dynamic>> rawList) {
@@ -379,134 +373,6 @@ class SuruhCatalogRepository implements CatalogRepository {
       );
     }).toList();
   }
-
-  List<FoodCategory> _defaultPontianakCategories() => const <FoodCategory>[
-        FoodCategory(id: 'titip-belanja', name: 'Titip & Belanja', emoji: '🛒', itemCount: 4),
-        FoodCategory(id: 'antar-dokumen', name: 'Antar Dokumen', emoji: '📄', itemCount: 3),
-        FoodCategory(id: 'bersih-rumah', name: 'Bersih Rumah', emoji: '🧹', itemCount: 2),
-        FoodCategory(id: 'bantu-antre', name: 'Bantu Antre & Urusan', emoji: '⏳', itemCount: 3),
-        FoodCategory(id: 'angkut-barang', name: 'Angkut Barang', emoji: '🚚', itemCount: 2),
-      ];
-
-  List<Restaurant> _defaultPontianakProviders() => const <Restaurant>[
-        Restaurant(
-          id: 'prov-titip-belanja',
-          name: 'SURUH Titip & Belanja Pontianak',
-          cuisines: <String>['Belanja Pasar', 'Titip Makanan', 'Kurir Khusus'],
-          emoji: '🛒',
-          rating: 4.9,
-          reviewCount: 142,
-          deliveryFeeMyr: 8000.0,
-          minOrderMyr: 15000.0,
-          etaMinMinutes: 20,
-          etaMaxMinutes: 40,
-          distanceKm: 1.8,
-          isOpen: true,
-          isPromoted: true,
-          promoText: 'Belanja di mana saja, kurir SURUH siap antar',
-          description: 'Mitra kurir profesional siap membelikan kebutuhan pasar, obat apotek, maupun makanan lokal Pontianak.',
-          address: Address(
-            id: 'addr-ptk-1',
-            label: AddressLabel.work,
-            line1: 'Jl. Tanjungpura No. 45',
-            city: 'Pontianak',
-            state: 'Kalimantan Barat',
-            postcode: '78111',
-          ),
-        ),
-        Restaurant(
-          id: 'prov-antar-dokumen',
-          name: 'SURUH Antar Dokumen & Surat',
-          cuisines: <String>['Dokumen Resmi', 'Ijazah/Sertifikat', 'Sameday'],
-          emoji: '📄',
-          rating: 5.0,
-          reviewCount: 96,
-          deliveryFeeMyr: 12000.0,
-          minOrderMyr: 12000.0,
-          etaMinMinutes: 15,
-          etaMaxMinutes: 30,
-          distanceKm: 2.4,
-          isOpen: true,
-          isPromoted: true,
-          promoText: 'Pengantaran aman bergaransi dokumen penting',
-          description: 'Layanan kurir khusus dokumen rahasia, legalisir, ijazah, atau invoice dengan bukti serah terima foto.',
-          address: Address(
-            id: 'addr-ptk-2',
-            label: AddressLabel.work,
-            line1: 'Jl. Ahmad Yani No. 8',
-            city: 'Pontianak',
-            state: 'Kalimantan Barat',
-            postcode: '78124',
-          ),
-        ),
-        Restaurant(
-          id: 'prov-bantu-antre',
-          name: 'SURUH Asisten & Urusan Pribadi',
-          cuisines: <String>['Antre Rumah Sakit', 'Urus Berkas', 'Bantuan Khusus'],
-          emoji: '⏳',
-          rating: 4.8,
-          reviewCount: 78,
-          deliveryFeeMyr: 25000.0,
-          minOrderMyr: 25000.0,
-          etaMinMinutes: 30,
-          etaMaxMinutes: 60,
-          distanceKm: 3.1,
-          isOpen: true,
-          isPromoted: false,
-          promoText: 'Ada urusan repot? Suruh kami yang selesaikan',
-          description: 'Jasa bantuan mengantre nomor antrean dokter, urus berkas instansi, hingga penitipan kunci.',
-          address: Address(
-            id: 'addr-ptk-3',
-            label: AddressLabel.work,
-            line1: 'Jl. Komyos Soedarso No. 19',
-            city: 'Pontianak',
-            state: 'Kalimantan Barat',
-            postcode: '78113',
-          ),
-        ),
-      ];
-
-  List<FoodItem> _defaultPontianakServices() => const <FoodItem>[
-        FoodItem(
-          id: 'svc-titip-beli',
-          restaurantId: 'prov-titip-belanja',
-          restaurantName: 'SURUH Titip & Belanja Pontianak',
-          name: 'Jasa Titip Beli Kebutuhan / Makanan',
-          description: 'Mitra membelikan pesanan makanan khas Pontianak, kebutuhan pasar Flamboyan, atau minimarket.',
-          priceMyr: 15000.0,
-          categoryId: 'titip-belanja',
-          emoji: '🛍️',
-          rating: 4.9,
-          reviewCount: 110,
-          isPopular: true,
-        ),
-        FoodItem(
-          id: 'svc-antar-dokumen',
-          restaurantId: 'prov-antar-dokumen',
-          restaurantName: 'SURUH Antar Dokumen & Surat',
-          name: 'Suruh Antar Dokumen Penting',
-          description: 'Antar berkas kantor, surat nikah, ijazah, dan dokumen legal aman dalam map tahan air.',
-          priceMyr: 15000.0,
-          categoryId: 'antar-dokumen',
-          emoji: '📁',
-          rating: 5.0,
-          reviewCount: 85,
-          isPopular: true,
-        ),
-        FoodItem(
-          id: 'svc-antre-rs',
-          restaurantId: 'prov-bantu-antre',
-          restaurantName: 'SURUH Asisten & Urusan Pribadi',
-          name: 'Bantu Ambil Nomor Antrean RS / Bank',
-          description: 'Mitra datang pagi untuk mengambil nomor antrean poli di RSUD Soedarso, Antonius, atau bank.',
-          priceMyr: 30000.0,
-          categoryId: 'bantu-antre',
-          emoji: '🏥',
-          rating: 4.8,
-          reviewCount: 64,
-          isPopular: true,
-        ),
-      ];
 
   String _categoryEmoji(String name, String slug) {
     final String lower = '${name.toLowerCase()} ${slug.toLowerCase()}';

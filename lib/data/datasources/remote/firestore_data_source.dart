@@ -12,11 +12,7 @@ import '../../models/restaurant_model.dart';
 import '../../models/review_model.dart';
 import '../../models/user_model.dart';
 
-/// Firestore/Storage/Functions access, mirroring [DemoDataSource]'s surface.
-///
-/// The repositories in `lib/data/repositories/` are written against that shared
-/// surface, so swapping `Backend.demo` for `Backend.firebase` in
-/// [AppConfig] is the only change needed to run against a live project.
+/// Optional Firebase Firestore/Storage/Functions data source.
 ///
 /// Collection layout (see `firebase/firestore.rules`):
 ///

@@ -62,15 +62,11 @@ dev_dependencies:
   flutter_lints: ^4.0.0
 
 # ---------------------------------------------------------------------------
-# Firebase is wired but OFF by default.
+# SURUH Platform Frontend
 #
-# The app ships with a fully working local demo backend so it runs with zero
-# configuration on web and mobile. To switch to the real Firebase backend:
-#   1. Run `flutterfire configure` to regenerate lib/firebase_options.dart
-#      (the checked-in file is a placeholder with no real project attached)
-#   2. Set `backend: Backend.firebase` in lib/core/config/app_config.dart
-#   3. Deploy the rules and functions under firebase/
-# See docs/SETUP.md for the full walkthrough.
+# Connects directly to the SURUH Django REST Framework backend API
+# (https://suruhjak.teknusa.com). Local SQLite database is used for offline
+# caching and fast data delivery.
 # ---------------------------------------------------------------------------
 
 flutter:

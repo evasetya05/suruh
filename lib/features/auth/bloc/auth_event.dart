@@ -41,16 +41,6 @@ class AuthRegisterRequested extends AuthEvent {
   List<Object?> get props => <Object?>[name, email, phone, password, role];
 }
 
-/// One-tap sign-in as a seeded persona.
-class AuthDemoSignInRequested extends AuthEvent {
-  const AuthDemoSignInRequested(this.role);
-
-  final UserRole role;
-
-  @override
-  List<Object?> get props => <Object?>[role];
-}
-
 class AuthSignOutRequested extends AuthEvent {
   const AuthSignOutRequested();
 }

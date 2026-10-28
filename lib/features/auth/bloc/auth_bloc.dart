@@ -19,13 +19,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   AuthBloc({
     required SignIn signIn,
     required Register register,
-    required SignInAsDemo signInAsDemo,
     required SignOut signOut,
     required RestoreSession restoreSession,
     required SendPasswordReset sendPasswordReset,
   })  : _signIn = signIn,
         _register = register,
-        _signInAsDemo = signInAsDemo,
         _signOut = signOut,
         _restoreSession = restoreSession,
         _sendPasswordReset = sendPasswordReset,
@@ -33,7 +31,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthStarted>(_onStarted);
     on<AuthSignInRequested>(_onSignIn);
     on<AuthRegisterRequested>(_onRegister);
-    on<AuthDemoSignInRequested>(_onDemoSignIn);
     on<AuthSignOutRequested>(_onSignOut);
     on<AuthPasswordResetRequested>(_onPasswordReset);
     on<AuthProfileRefreshed>(_onProfileRefreshed);
@@ -42,7 +39,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
   final SignIn _signIn;
   final Register _register;
-  final SignInAsDemo _signInAsDemo;
   final SignOut _signOut;
   final RestoreSession _restoreSession;
   final SendPasswordReset _sendPasswordReset;
@@ -86,15 +82,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         role: event.role,
       ),
     );
-    _emitAuthResult(result, emit);
-  }
-
-  Future<void> _onDemoSignIn(
-    AuthDemoSignInRequested event,
-    Emitter<AuthState> emit,
-  ) async {
-    emit(state.copyWith(isSubmitting: true, clearMessages: true));
-    final Result<User> result = await _signInAsDemo(event.role);
     _emitAuthResult(result, emit);
   }
 

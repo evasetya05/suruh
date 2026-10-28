@@ -4,8 +4,8 @@ import '../entities/cart.dart';
 import '../entities/order.dart';
 
 abstract interface class OrderRepository {
-  /// Converts a [Cart] into a persisted [Order] and starts the delivery
-  /// simulation (demo backend) or triggers a Cloud Function (Firebase).
+  /// Converts a [Cart] into a persisted [Order] and sends the order
+  /// to the SURUH backend API.
   Future<Result<Order>> placeOrder({
     required Cart cart,
     required Address deliveryAddress,

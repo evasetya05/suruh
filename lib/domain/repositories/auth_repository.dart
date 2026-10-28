@@ -25,9 +25,6 @@ abstract interface class AuthRepository {
     required UserRole role,
   });
 
-  /// Signs in as one of the seeded demo personas without typing credentials.
-  Future<Result<User>> signInAsDemo(UserRole role);
-
   Future<Result<void>> signOut();
 
   Future<Result<void>> sendPasswordReset(String email);

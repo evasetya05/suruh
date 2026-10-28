@@ -11,10 +11,8 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/utils/link_launcher.dart';
 import '../../../core/widgets/app_logo.dart';
-import '../../../core/widgets/article_credit.dart';
 import '../../../core/widgets/common_widgets.dart';
 import '../../../core/widgets/state_views.dart';
-import '../../../data/datasources/local/demo_data_source.dart';
 import '../../../domain/entities/user.dart';
 import '../../auth/bloc/auth_bloc.dart';
 
@@ -91,19 +89,12 @@ class ProfileScreen extends StatelessWidget {
                   onTap: null,
                 ),
                 const SizedBox(height: AppSpacing.xl),
-                const SectionHeader(title: 'Demo controls'),
-                _MenuTile(
-                  icon: Icons.restart_alt_rounded,
-                  title: 'Reset demo data',
-                  subtitle: 'Restore the seeded restaurants, menus and orders',
-                  onTap: () => _resetDemoData(context),
-                ),
+                const SectionHeader(title: 'Informasi & Bantuan'),
                 _MenuTile(
                   icon: Icons.menu_book_outlined,
-                  title: 'Read the article',
+                  title: 'Dokumentasi API',
                   subtitle:
-                      'The ${AppConfig.instance.publisher} write-up this demo '
-                      'was built for',
+                      'Dokumentasi teknis REST API backend SURUH',
                   onTap: () => LinkLauncher.open(
                     context,
                     AppConfig.instance.articleUrl,
@@ -117,8 +108,6 @@ class ProfileScreen extends StatelessWidget {
                       '${AppConfig.instance.backend.name} backend',
                   onTap: () => _showAbout(context),
                 ),
-                const SizedBox(height: AppSpacing.xl),
-                const ArticleCredit(),
                 const SizedBox(height: AppSpacing.xxl),
                 OutlinedButton.icon(
                   onPressed: () => _confirmSignOut(context),
@@ -162,17 +151,6 @@ class ProfileScreen extends StatelessWidget {
     if (confirmed ?? false) auth.add(const AuthSignOutRequested());
   }
 
-  void _resetDemoData(BuildContext context) {
-    DemoDataSource.instance.reset();
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        const SnackBar(
-          content: Text('Demo data reset. Pull to refresh any open list.'),
-        ),
-      );
-  }
-
   void _showAbout(BuildContext context) {
     final AppConfig config = AppConfig.instance;
 
@@ -185,17 +163,15 @@ class ProfileScreen extends StatelessWidget {
         child: AppLogo(size: 44),
       ),
       applicationLegalese:
-          'A portfolio Flutter demo by ${config.publisher}. Restaurants, '
-          'dishes, reviews and orders are fictional seed data.',
+          'Platform Jasa On-Demand Pontianak oleh ${config.publisher}. '
+          'Semua layanan dan data terhubung langsung ke backend SURUH.',
       children: <Widget>[
         const SizedBox(height: AppSpacing.md),
         Text(
-          'Clean Architecture with BLoC, GoRouter and GetIt. '
+          'Clean Architecture BLoC, GoRouter & GetIt. '
           'Backend: ${config.backend.name}.',
           style: Theme.of(context).textTheme.bodySmall,
         ),
-        const SizedBox(height: AppSpacing.md),
-        const ArticleCredit(compact: true),
       ],
     );
   }

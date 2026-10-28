@@ -1,13 +1,9 @@
 /// Which backend implementation the repositories are bound to.
 enum Backend {
-  /// SURUH Django REST Framework API (suruh_backend/compose.yaml on port 8019)
+  /// SURUH Django REST Framework API (https://suruhjak.teknusa.com)
   suruhApi,
 
-  /// Fully offline, seeded demo backend. Zero configuration, works everywhere.
-  demo,
-
   /// Firebase Auth + Cloud Firestore + Storage + Functions + Messaging.
-  /// Requires `flutterfire configure` and the Firebase deps in pubspec.yaml.
   firebase,
 }
 

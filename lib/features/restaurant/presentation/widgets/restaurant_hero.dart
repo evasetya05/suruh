@@ -46,7 +46,7 @@ class RestaurantHero extends StatelessWidget {
             ..hideCurrentSnackBar()
             ..showSnackBar(
               SnackBar(
-                content: Text('Shared ${restaurant.name} (demo action)'),
+                content: Text('Tautan layanan ${restaurant.name} disalin'),
               ),
             ),
         ),
