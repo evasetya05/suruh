@@ -1104,18 +1104,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   : AppColors.lightTextSecondary,
             ),
           ),
-          const SizedBox(height: 4),
-          Text(
-            'Jam Operasional: 06.00 - 22.00 WIB\nSemua transaksi aman & dilayani langsung via WhatsApp admin resmi.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 11,
-              height: 1.4,
-              color: isDark
-                  ? AppColors.darkTextTertiary
-                  : AppColors.lightTextTertiary,
-            ),
-          ),
         ],
       ),
     );
