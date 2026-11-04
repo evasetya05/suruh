@@ -143,12 +143,57 @@ class FoodItem extends Equatable {
     return availableCities.contains(citySlug);
   }
 
-  String get formattedPrice {
-    if (priceDisplay != null && priceDisplay!.trim().isNotEmpty) {
-      return priceDisplay!;
+  /// Format string harga agar selalu memiliki separator ribuan (titik) dan prefix Rp jika angka.
+  static String formatRupiah(String? raw, {double fallback = 0}) {
+    if (raw == null || raw.trim().isEmpty) {
+      final int amount = fallback.toInt();
+      final String formatted = amount.toString().replaceAllMapped(
+        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+        (Match m) => '${m[1]}.',
+      );
+      return 'Rp $formatted';
     }
-    return 'Rp ${priceMyr.toInt().toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')}';
+
+    String text = raw.trim();
+
+    // Format angka 4 digit atau lebih yang belum memiliki separator titik
+    text = text.replaceAllMapped(RegExp(r'\b(\d{4,})\b'), (Match m) {
+      final String digits = m[1]!;
+      return digits.replaceAllMapped(
+        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+        (Match m2) => '${m2[1]}.',
+      );
+    });
+
+    // Tambahkan "Rp" jika memiliki angka dan belum ada kata Rp
+    final bool hasDigits = RegExp(r'\d').hasMatch(text);
+    final bool hasRp = RegExp(r'rp', caseSensitive: false).hasMatch(text);
+
+    if (hasDigits && !hasRp) {
+      if (text.toLowerCase().startsWith('mulai ')) {
+        final String rest = text.substring(6).trim();
+        text = 'Mulai Rp $rest';
+      } else {
+        text = 'Rp $text';
+      }
+    }
+
+    return text;
   }
+
+  String get formattedPrice => formatRupiah(priceDisplay, fallback: priceMyr);
+
+  /// Nilai harga tanpa teks 'Rp' / 'IDR' untuk keperluan tampilan dengan badge/icon Rp terpisah
+  String get displayPriceWithoutRp {
+    final String full = formattedPrice;
+    final String clean = full
+        .replaceAll(RegExp(r'\b(rp\.?|idr)\s*', caseSensitive: false), '')
+        .trim();
+    return clean.isNotEmpty ? clean : full;
+  }
+
+  /// Mengecek apakah harga mengandung nilai angka sehingga bisa disematkan badge Rp
+  bool get hasNumericPrice => RegExp(r'\d').hasMatch(formattedPrice);
 
   bool get isOnOffer =>
       discountPriceMyr != null && discountPriceMyr! < priceMyr;

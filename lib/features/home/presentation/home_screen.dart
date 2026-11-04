@@ -933,14 +933,54 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                     const SizedBox(height: 2),
-                    Text(
-                      item.formattedPrice,
-                      style: const TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.primaryDark,
+                    if (item.hasNumericPrice)
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: <Widget>[
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 5,
+                              vertical: 1.5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(AppRadius.xs),
+                              border: Border.all(
+                                color: AppColors.primary.withValues(alpha: 0.35),
+                                width: 0.8,
+                              ),
+                            ),
+                            child: const Text(
+                              'Rp',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w900,
+                                color: AppColors.primary,
+                                letterSpacing: 0.2,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            item.displayPriceWithoutRp,
+                            style: const TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w900,
+                              color: AppColors.primaryDark,
+                            ),
+                          ),
+                        ],
+                      )
+                    else
+                      Text(
+                        item.formattedPrice,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.primaryDark,
+                        ),
                       ),
-                    ),
                   ],
                 ),
                 ElevatedButton.icon(
