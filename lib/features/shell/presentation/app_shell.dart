@@ -79,6 +79,7 @@ class AppShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bool wide = context.isWide;
+    final bool isLandingPage = location == Routes.home;
 
     return Scaffold(
       body: Column(
@@ -88,7 +89,7 @@ class AppShell extends StatelessWidget {
                 online ? const SizedBox.shrink() : const OfflineBanner(),
           ),
           Expanded(
-            child: wide
+            child: wide && !isLandingPage
                 ? Row(
                     children: <Widget>[
                       _SideRail(
@@ -103,13 +104,13 @@ class AppShell extends StatelessWidget {
           ),
         ],
       ),
-      bottomNavigationBar: wide
+      bottomNavigationBar: (wide || isLandingPage)
           ? null
           : _BottomBar(
               currentIndex: _currentIndex,
               onTap: (int i) => _onTap(context, i),
             ),
-      floatingActionButton: const _CartFab(),
+      floatingActionButton: isLandingPage ? null : const _CartFab(),
     );
   }
 }

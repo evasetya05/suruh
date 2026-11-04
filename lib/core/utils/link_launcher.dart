@@ -42,6 +42,26 @@ abstract final class LinkLauncher {
     }
   }
 
+  /// Opens WhatsApp directly with a prefilled message for admin ordering/chat.
+  static Future<void> openWhatsApp(
+    BuildContext context, {
+    String? phone,
+    String? message,
+    String? fullUrl,
+  }) async {
+    if (fullUrl != null && fullUrl.trim().isNotEmpty) {
+      await open(context, fullUrl, failureMessage: 'Tidak dapat membuka WhatsApp');
+      return;
+    }
+    final String cleanPhone = (phone ?? '6281211112222').replaceAll(RegExp(r'[^0-9]'), '');
+    final String text = Uri.encodeComponent(
+      message ?? 'Halo Admin SURUH, saya ingin memesan layanan. Mohon info prosesnya.',
+    );
+    final String url = 'https://wa.me/$cleanPhone?text=$text';
+    await open(context, url, failureMessage: 'Tidak dapat membuka aplikasi WhatsApp');
+  }
+
+
   static void _report(ScaffoldMessengerState messenger, String message) {
     messenger
       ..hideCurrentSnackBar()

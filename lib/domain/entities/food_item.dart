@@ -24,6 +24,10 @@ class FoodItem extends Equatable {
     this.isAvailable = true,
     this.isPopular = false,
     this.servingSize,
+    this.priceDisplay,
+    this.whatsappNumber,
+    this.whatsappUrl,
+    this.availableCities = const <String>[],
   });
 
   final String id;
@@ -52,6 +56,22 @@ class FoodItem extends Equatable {
   final bool isAvailable;
   final bool isPopular;
   final String? servingSize;
+  final String? priceDisplay;
+  final String? whatsappNumber;
+  final String? whatsappUrl;
+  final List<String> availableCities;
+
+  bool isAvailableInCity(String citySlug) {
+    if (availableCities.isEmpty) return true;
+    return availableCities.contains(citySlug);
+  }
+
+  String get formattedPrice {
+    if (priceDisplay != null && priceDisplay!.trim().isNotEmpty) {
+      return priceDisplay!;
+    }
+    return 'Rp ${priceMyr.toInt().toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')}';
+  }
 
   bool get isOnOffer =>
       discountPriceMyr != null && discountPriceMyr! < priceMyr;

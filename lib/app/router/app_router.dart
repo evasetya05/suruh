@@ -60,8 +60,9 @@ GoRouter createRouter({
       }
 
       if (!auth.isAuthenticated) {
-        if (Routes.isPublic(location) && location != Routes.splash) return null;
-        return hasSeenOnboarding ? Routes.login : Routes.onboarding;
+        if (location == Routes.splash) return Routes.home;
+        if (Routes.isPublic(location)) return null;
+        return Routes.home;
       }
 
       // Signed in: bounce away from the auth flow to the role's landing page.

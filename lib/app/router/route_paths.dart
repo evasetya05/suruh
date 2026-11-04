@@ -54,6 +54,8 @@ abstract final class Routes {
     onboarding,
     login,
     register,
+    home,
+    search,
   };
 
   static bool isPublic(String location) =>

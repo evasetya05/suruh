@@ -1,12 +1,12 @@
 # SURUH - Panduan Penggunaan & Pengembangan Frontend
 
-Dokumentasi Teknis & Pengoperasian Aplikasi Flutter SURUH Pontianak (Live Backend Ready).
+Dokumentasi Teknis & Pengoperasian Aplikasi Flutter SURUHaja.id (Live Backend Ready).
 
 ---
 
 ## 1. Gambaran Umum & Arsitektur
 
-Aplikasi SURUH adalah platform jasa on-demand Pontianak berbasis Flutter yang dibangun dengan prinsip **Clean Architecture**. Seluruh data operasional (kategori layanan, katalog servis, profil pengguna, dan riwayat pesanan) terhubung secara langsung (*live*) ke backend SURUH Django REST Framework API (`https://suruhjak.teknusa.com`) serta didukung SQLite (`AppDatabase`) untuk caching offline berkecepatan tinggi.
+Aplikasi SURUH adalah platform jasa on-demand  berbasis Flutter yang dibangun dengan prinsip **Clean Architecture**. Seluruh data operasional (kategori layanan, katalog servis, profil pengguna, dan riwayat pesanan) terhubung secara langsung (*live*) ke backend SURUH Django REST Framework API (`https://suruhjak.teknusa.com`) serta didukung SQLite (`AppDatabase`) untuk caching offline berkecepatan tinggi.
 
 - **State Management:** Lapisan UI & Navigasi menggunakan BLoC / Cubit dan GoRouter.
 - **Dependency Injection:** Injeksi dependensi modular menggunakan `get_it` (Service Locator).
@@ -33,7 +33,7 @@ const AppConfig({
   this.backend = Backend.suruhApi,
   this.appName = 'SURUH',
   this.tagline = 'Ada urusan? Suruh kami',
-  this.publisher = 'SURUH Pontianak',
+  this.publisher = 'SURUHaja.id',
   this.articleUrl = 'https://suruhjak.teknusa.com/api/docs/',
   this.currencySymbol = 'Rp',
   this.currencyLocale = 'id_ID',

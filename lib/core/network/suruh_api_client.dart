@@ -361,15 +361,30 @@ class SuruhApiClient {
     return const <dynamic>[];
   }
 
-  /// Fetches active public services. Optionally filtered by category slug.
-  Future<List<dynamic>> getServices({String? categorySlug}) async {
-    final Map<String, String>? params =
-        categorySlug != null ? <String, String>{'category': categorySlug} : null;
+  /// Fetches active operational cities (e.g. Pontianak, Ketapang, Singkawang).
+  Future<List<dynamic>> getCities() async {
+    final dynamic response = await request(
+      method: 'GET',
+      path: '/api/v1/services/cities/',
+      requiresAuth: false,
+    );
+    if (response is List) return response;
+    if (response is Map && response['results'] is List) {
+      return response['results'] as List<dynamic>;
+    }
+    return const <dynamic>[];
+  }
+
+  /// Fetches active public services. Optionally filtered by category and city slug.
+  Future<List<dynamic>> getServices({String? categorySlug, String? citySlug}) async {
+    final Map<String, String> params = <String, String>{};
+    if (categorySlug != null) params['category'] = categorySlug;
+    if (citySlug != null) params['city'] = citySlug;
 
     final dynamic response = await request(
       method: 'GET',
       path: '/api/v1/services/services/',
-      queryParams: params,
+      queryParams: params.isEmpty ? null : params,
       requiresAuth: false,
     );
 

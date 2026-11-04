@@ -163,10 +163,10 @@ class SuruhCatalogRepository implements CatalogRepository {
     return guard<List<Promo>>(() async {
       return const <Promo>[
         Promo(
-          id: 'promo-ptk-1',
+          id: 'promo-1',
           code: 'SURUHHEMAT',
-          title: 'Diskon Jasa Titip Pontianak',
-          subtitle: 'Hemat ongkir hingga Rp 10.000 untuk pengiriman dalam kota Pontianak',
+          title: 'Diskon Jasa Titip',
+          subtitle: 'Hemat biaya jasa hingga Rp 10.000 untuk pesanan pertama Anda',
           discountPercent: 20,
           maxDiscountMyr: 10000,
           minSpendMyr: 25000,
@@ -174,10 +174,10 @@ class SuruhCatalogRepository implements CatalogRepository {
           badge: 'HEMAT',
         ),
         Promo(
-          id: 'promo-ptk-2',
+          id: 'promo-2',
           code: 'ANTARDOKUMEN',
           title: 'Layanan Kilat Dokumen',
-          subtitle: 'Pasti sampai & aman langsung ke penerima di Pontianak & Kubu Raya',
+          subtitle: 'Pasti sampai & aman langsung ke penerima hari ini',
           discountPercent: 15,
           maxDiscountMyr: 8000,
           minSpendMyr: 20000,
@@ -317,13 +317,27 @@ class SuruhCatalogRepository implements CatalogRepository {
         price = (p['base_price'] as num?)?.toDouble() ?? 15000.0;
       }
 
+      final String? priceDisplay = s['price_display'] as String?;
+      final String? whatsappNumber = s['whatsapp_number'] as String?;
+      final String? whatsappUrl = s['whatsapp_url'] as String?;
+      List<String> cities = const <String>[];
+      if (s['available_cities'] is List) {
+        cities = (s['available_cities'] as List<dynamic>)
+            .map((dynamic c) => c.toString())
+            .toList();
+      }
+
       return FoodItem(
         id: id,
         restaurantId: 'prov-$catSlug',
-        restaurantName: 'SURUH $catName Pontianak',
+        restaurantName: 'SURUH $catName',
         name: name,
         description: desc,
         priceMyr: price,
+        priceDisplay: priceDisplay,
+        whatsappNumber: whatsappNumber,
+        whatsappUrl: whatsappUrl,
+        availableCities: cities,
         categoryId: catSlug,
         emoji: _categoryEmoji(name, catSlug),
         rating: 4.9,
@@ -348,8 +362,8 @@ class SuruhCatalogRepository implements CatalogRepository {
       final String catSlug = entry.value.first['category_slug'] as String? ?? 'umum';
       return Restaurant(
         id: 'prov-$catSlug',
-        name: 'SURUH $catName Pontianak',
-        cuisines: <String>[catName, 'On-Demand', 'Pontianak'],
+        name: 'SURUH $catName',
+        cuisines: <String>[catName, 'On-Demand'],
         emoji: _categoryEmoji(catName, catSlug),
         rating: 4.9,
         reviewCount: 88,
@@ -361,14 +375,14 @@ class SuruhCatalogRepository implements CatalogRepository {
         isOpen: true,
         isPromoted: true,
         promoText: 'Tarif transparan & kurir terpercaya',
-        description: 'Layanan resmi platform SURUH di area Kota Pontianak & sekitarnya.',
+        description: 'Layanan resmi platform SURUH.',
         address: const Address(
-          id: 'addr-hub-ptk',
+          id: 'addr-hub',
           label: AddressLabel.work,
-          line1: 'Jl. Gajah Mada No. 12',
-          city: 'Pontianak',
+          line1: 'Kantor Layanan SURUH',
+          city: 'Indonesia',
           state: 'Kalimantan Barat',
-          postcode: '78121',
+          postcode: '78000',
         ),
       );
     }).toList();

@@ -15,7 +15,7 @@ class AppConfig {
     this.backend = Backend.suruhApi,
     this.appName = 'SURUH',
     this.tagline = 'Ada urusan? Suruh kami',
-    this.publisher = 'SURUH Pontianak',
+    this.publisher = 'SURUH',
     this.articleUrl = 'https://suruhjak.teknusa.com/api/docs/',
     this.currencySymbol = 'Rp',
     this.currencyLocale = 'id_ID',
