@@ -46,17 +46,7 @@ class SuruhCatalogRepository implements CatalogRepository {
       // 1. Cek cache SQLite terlebih dahulu untuk performa instan & hemat bandwidth API
       final List<Map<String, dynamic>> sqliteCached = await _database.getCachedCategories();
       if (sqliteCached.isNotEmpty) {
-        _categoriesCache = sqliteCached.map((Map<String, dynamic> c) {
-          final String name = c['name'] as String? ?? 'Layanan';
-          final String slug = c['slug'] as String? ?? c['id'].toString();
-          final int count = c['active_services_count'] as int? ?? c['item_count'] as int? ?? 1;
-          return FoodCategory(
-            id: slug,
-            name: name,
-            emoji: _categoryEmoji(name, slug),
-            itemCount: count,
-          );
-        }).toList();
+        _categoriesCache = sqliteCached.map(FoodCategory.fromJson).toList();
       }
 
       // 2. Refresh dari backend live bila memungkinkan
@@ -66,17 +56,7 @@ class SuruhCatalogRepository implements CatalogRepository {
           final List<Map<String, dynamic>> maps = raw.cast<Map<String, dynamic>>();
           await _database.cacheCategories(maps); // Simpan ke SQLite
 
-          final List<FoodCategory> mapped = maps.map((Map<String, dynamic> c) {
-            final String name = c['name'] as String? ?? 'Layanan';
-            final String slug = c['slug'] as String? ?? c['id'].toString();
-            final int count = c['active_services_count'] as int? ?? c['item_count'] as int? ?? 1;
-            return FoodCategory(
-              id: slug,
-              name: name,
-              emoji: _categoryEmoji(name, slug),
-              itemCount: count,
-            );
-          }).toList();
+          final List<FoodCategory> mapped = maps.map(FoodCategory.fromJson).toList();
           _categoriesCache = mapped;
           return mapped;
         }
@@ -142,11 +122,9 @@ class SuruhCatalogRepository implements CatalogRepository {
   }
 
   @override
-  Future<Result<List<FoodItem>>> getPopularDishes({int limit = 10}) {
+  Future<Result<List<FoodItem>>> getPopularDishes({int limit = 100}) {
     return guard<List<FoodItem>>(() async {
-      final List<FoodItem> items = await _loadOrFetchServices();
-      final List<FoodItem> popular = items.where((FoodItem i) => i.isPopular).toList();
-      return (popular.isNotEmpty ? popular : items).take(limit).toList();
+      return await _loadOrFetchServices();
     });
   }
 
@@ -304,48 +282,7 @@ class SuruhCatalogRepository implements CatalogRepository {
   }
 
   List<FoodItem> _mapServicesList(List<Map<String, dynamic>> rawList) {
-    return rawList.map((Map<String, dynamic> s) {
-      final String id = s['id']?.toString() ?? s['slug']?.toString() ?? 'svc';
-      final String name = s['name'] as String? ?? 'Layanan SURUH';
-      final String catName = s['category_name'] as String? ?? 'Umum';
-      final String catSlug = s['category_slug'] as String? ?? 'umum';
-      final String desc = s['short_description'] as String? ?? s['description'] as String? ?? '';
-
-      double price = 15000.0;
-      if (s['pricing_configuration'] is Map) {
-        final Map<String, dynamic> p = s['pricing_configuration'] as Map<String, dynamic>;
-        price = (p['base_price'] as num?)?.toDouble() ?? 15000.0;
-      }
-
-      final String? priceDisplay = s['price_display'] as String?;
-      final String? whatsappNumber = s['whatsapp_number'] as String?;
-      final String? whatsappUrl = s['whatsapp_url'] as String?;
-      List<String> cities = const <String>[];
-      if (s['available_cities'] is List) {
-        cities = (s['available_cities'] as List<dynamic>)
-            .map((dynamic c) => c.toString())
-            .toList();
-      }
-
-      return FoodItem(
-        id: id,
-        restaurantId: 'prov-$catSlug',
-        restaurantName: 'SURUH $catName',
-        name: name,
-        description: desc,
-        priceMyr: price,
-        priceDisplay: priceDisplay,
-        whatsappNumber: whatsappNumber,
-        whatsappUrl: whatsappUrl,
-        availableCities: cities,
-        categoryId: catSlug,
-        emoji: _categoryEmoji(name, catSlug),
-        rating: 4.9,
-        reviewCount: 38,
-        isPopular: true,
-        isAvailable: true,
-      );
-    }).toList();
+    return rawList.map(FoodItem.fromJson).toList();
   }
 
   List<Restaurant> _buildProvidersFromServices(List<dynamic> services) {

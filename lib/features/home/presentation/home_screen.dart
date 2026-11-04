@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../app/cubit/theme_cubit.dart';
 import '../../../app/di/service_locator.dart';
 import '../../../core/network/suruh_api_client.dart';
 import '../../../core/responsive/responsive.dart';
+import '../../../core/storage/app_database.dart';
 import '../../../core/storage/local_storage.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
@@ -15,41 +15,28 @@ import '../../../core/widgets/state_views.dart';
 import '../../../domain/entities/food_category.dart';
 import '../../../domain/entities/food_item.dart';
 import '../../../domain/entities/operational_city.dart';
-import '../../../domain/usecases/catalog_usecases.dart';
-import '../bloc/home_bloc.dart';
 
-/// Single-page Landing Page for SURUH Platform with Dynamic Backend City Support.
+/// Single-page Landing Page for SURUH Platform.
 ///
-/// Features:
-/// 1. Operational City list loaded dynamically from backend API (/api/v1/services/cities/).
-/// 2. Direct Service & Pricing Catalog filtered by active city.
-/// 3. Category filters and live keyword search.
-/// 4. Direct 1-tap WhatsApp Admin order button with prefilled messages referencing the active city.
-/// 5. Floating WhatsApp support button routed to the active city's admin.
-class HomeScreen extends StatelessWidget {
+/// 100% Dynamic from Backend (Django REST Framework / PostgreSQL):
+/// - Operational Cities: GET /api/v1/services/cities/ (Model: OperationalCity)
+/// - Service Categories: GET /api/v1/services/categories/ (Model: ServiceCategory)
+/// - Services & Prices: GET /api/v1/services/services/ (Model: Service)
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return BlocProvider<HomeBloc>(
-      create: (_) =>
-          HomeBloc(getHomeFeed: sl<GetHomeFeed>())..add(const HomeRequested()),
-      child: const _LandingPageView(),
-    );
-  }
+  State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _LandingPageView extends StatefulWidget {
-  const _LandingPageView();
-
-  @override
-  State<_LandingPageView> createState() => _LandingPageViewState();
-}
-
-class _LandingPageViewState extends State<_LandingPageView> {
+class _HomeScreenState extends State<HomeScreen> {
   List<OperationalCity> _cities = const <OperationalCity>[];
   OperationalCity? _selectedCity;
-  bool _isLoadingCities = false;
+  List<FoodCategory> _categories = const <FoodCategory>[];
+  List<FoodItem> _services = const <FoodItem>[];
+
+  bool _isLoading = true;
+  String? _errorMessage;
 
   String _selectedCategorySlug = 'all';
   String _searchQuery = '';
@@ -62,47 +49,99 @@ class _LandingPageViewState extends State<_LandingPageView> {
   @override
   void initState() {
     super.initState();
-    _fetchCities();
+    _loadBackendData();
   }
 
-  /// Loads cities dynamically from the backend REST API
-  Future<void> _fetchCities() async {
-    setState(() => _isLoadingCities = true);
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  /// Fetches cities, categories, and all services live from backend REST API
+  Future<void> _loadBackendData({bool isRefresh = false}) async {
+    if (!isRefresh && _services.isEmpty) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+    }
+
     try {
       final SuruhApiClient client = sl<SuruhApiClient>();
-      final List<dynamic> raw = await client.getCities();
-      if (raw.isNotEmpty) {
-        final List<OperationalCity> fetched = raw
-            .whereType<Map<String, dynamic>>()
-            .map(OperationalCity.fromJson)
-            .toList();
+      final AppDatabase db = sl<AppDatabase>();
+      final LocalStorage storage = sl<LocalStorage>();
 
-        final LocalStorage storage = sl<LocalStorage>();
-        final String? savedSlug = storage.getString(_kSelectedCityKey);
+      // 1. Fetch cities from backend (/api/v1/services/cities/)
+      final List<dynamic> rawCities = await client.getCities();
+      final List<OperationalCity> fetchedCities = rawCities
+          .whereType<Map<String, dynamic>>()
+          .map(OperationalCity.fromJson)
+          .toList();
 
-        OperationalCity? activeCity;
-        if (savedSlug != null && savedSlug.isNotEmpty) {
-          activeCity = fetched.cast<OperationalCity?>().firstWhere(
-                (OperationalCity? c) => c?.slug == savedSlug,
-                orElse: () => null,
-              );
-        }
+      // 2. Fetch categories from backend (/api/v1/services/categories/)
+      final List<dynamic> rawCategories = await client.getCategories();
+      final List<FoodCategory> fetchedCategories = rawCategories
+          .whereType<Map<String, dynamic>>()
+          .map(FoodCategory.fromJson)
+          .toList();
 
-        activeCity ??= (fetched.isNotEmpty ? fetched.first : null);
+      // 3. Fetch services from backend (/api/v1/services/services/)
+      final List<dynamic> rawServices = await client.getServices();
+      final List<FoodItem> fetchedServices = rawServices
+          .whereType<Map<String, dynamic>>()
+          .map(FoodItem.fromJson)
+          .toList();
 
-        if (mounted) {
-          setState(() {
-            _cities = fetched;
-            _selectedCity = activeCity;
-            _isLoadingCities = false;
-          });
-        }
-        return;
+      // Save to SQLite local cache for offline availability
+      if (rawCategories.isNotEmpty) {
+        await db.cacheCategories(rawCategories.cast<Map<String, dynamic>>());
       }
-    } catch (_) {}
+      if (rawServices.isNotEmpty) {
+        await db.cacheServices(rawServices.cast<Map<String, dynamic>>());
+      }
 
-    if (mounted) {
-      setState(() => _isLoadingCities = false);
+      // Determine active city
+      final String? savedSlug = storage.getString(_kSelectedCityKey);
+      OperationalCity? activeCity;
+      if (savedSlug != null && savedSlug.isNotEmpty && fetchedCities.isNotEmpty) {
+        activeCity = fetchedCities.cast<OperationalCity?>().firstWhere(
+              (OperationalCity? c) => c?.slug == savedSlug,
+              orElse: () => null,
+            );
+      }
+      activeCity ??= _selectedCity ?? (fetchedCities.isNotEmpty ? fetchedCities.first : null);
+
+      if (mounted) {
+        setState(() {
+          _cities = fetchedCities;
+          _selectedCity = activeCity;
+          _categories = fetchedCategories;
+          _services = fetchedServices;
+          _isLoading = false;
+          _errorMessage = null;
+        });
+      }
+    } catch (e) {
+      // Offline fallback: load from SQLite cache
+      final AppDatabase db = sl<AppDatabase>();
+      final List<Map<String, dynamic>> cachedServices = await db.getCachedServices();
+      final List<Map<String, dynamic>> cachedCategories = await db.getCachedCategories();
+
+      if (mounted) {
+        setState(() {
+          if (cachedServices.isNotEmpty) {
+            _services = cachedServices.map(FoodItem.fromJson).toList();
+          }
+          if (cachedCategories.isNotEmpty) {
+            _categories = cachedCategories.map(FoodCategory.fromJson).toList();
+          }
+          _isLoading = false;
+          if (_services.isEmpty) {
+            _errorMessage = 'Belum dapat terhubung ke server backend. Periksa koneksi atau jalankan backend API.';
+          }
+        });
+      }
     }
   }
 
@@ -125,12 +164,6 @@ class _LandingPageViewState extends State<_LandingPageView> {
         ),
       );
     }
-  }
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
   }
 
   void _onCategorySelected(String slug) {
@@ -207,24 +240,18 @@ class _LandingPageViewState extends State<_LandingPageView> {
                   ),
                 ),
                 const Divider(),
-                if (_isLoadingCities)
-                  const Padding(
-                    padding: EdgeInsets.all(AppSpacing.xl),
-                    child: Center(
-                      child: CircularProgressIndicator(strokeWidth: 2.5),
-                    ),
-                  )
-                else if (_cities.isEmpty)
+                if (_cities.isEmpty)
                   Padding(
                     padding: const EdgeInsets.all(AppSpacing.xl),
                     child: Center(
                       child: Text(
-                        'Belum ada data wilayah dari server.',
+                        'Daftar wilayah belum tersedia atau sedang dimuat dari backend.',
                         style: theme.textTheme.bodyMedium?.copyWith(
                           color: isDark
                               ? AppColors.darkTextSecondary
                               : AppColors.lightTextSecondary,
                         ),
+                        textAlign: TextAlign.center,
                       ),
                     ),
                   )
@@ -283,7 +310,6 @@ class _LandingPageViewState extends State<_LandingPageView> {
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
     final bool isDark = theme.brightness == Brightness.dark;
-
     final String activeCityName = _selectedCity?.name ?? 'Pilih Wilayah';
 
     return Scaffold(
@@ -300,211 +326,194 @@ class _LandingPageViewState extends State<_LandingPageView> {
         ),
       ),
       body: RefreshIndicator(
-        onRefresh: () async {
-          await _fetchCities();
-          if (context.mounted) {
-            context.read<HomeBloc>().add(const HomeRefreshed());
-          }
-          await Future<void>.delayed(const Duration(milliseconds: 600));
-        },
-        child: BlocBuilder<HomeBloc, HomeState>(
-          builder: (BuildContext context, HomeState state) {
-            // Safe null checks: never force unwrap state.feed
-            if (state.status == HomeStatus.failure && !state.hasFeed) {
-              return ListView(
-                children: <Widget>[
-                  SizedBox(height: context.screenHeight * 0.2),
-                  ErrorView(
-                    message: state.errorMessage ??
-                        'Gagal memuat katalog layanan. Silakan periksa koneksi internet.',
-                    onRetry: () {
-                      _fetchCities();
-                      context.read<HomeBloc>().add(const HomeRequested());
-                    },
-                  ),
-                ],
-              );
-            }
+        onRefresh: () => _loadBackendData(isRefresh: true),
+        child: _buildContent(context, activeCityName, isDark),
+      ),
+    );
+  }
 
-            if (state.isLoading || !state.hasFeed || state.feed == null) {
-              return const CustomScrollView(
-                slivers: <Widget>[
-                  SliverToBoxAdapter(child: _LandingSkeleton()),
-                ],
-              );
-            }
+  Widget _buildContent(BuildContext context, String activeCityName, bool isDark) {
+    if (_isLoading && _services.isEmpty) {
+      return const CustomScrollView(
+        slivers: <Widget>[
+          SliverToBoxAdapter(child: _LandingSkeleton()),
+        ],
+      );
+    }
 
-            final HomeFeed feed = state.feed!;
-            final List<FoodItem> allServices = feed.popularDishes;
+    if (_errorMessage != null && _services.isEmpty) {
+      return ListView(
+        children: <Widget>[
+          SizedBox(height: context.screenHeight * 0.2),
+          ErrorView(
+            message: _errorMessage!,
+            onRetry: () => _loadBackendData(),
+          ),
+        ],
+      );
+    }
 
-            // Filter services by active city, category, and keyword
-            final List<FoodItem> filteredServices = allServices.where((FoodItem s) {
-              final bool matchesCity = _selectedCity == null ||
-                  s.isAvailableInCity(_selectedCity!.slug);
+    // Filter services by active city, category chip, and search keyword
+    final List<FoodItem> filteredServices = _services.where((FoodItem s) {
+      final bool matchesCity = _selectedCity == null ||
+          s.isAvailableInCity(_selectedCity!.slug);
 
-              final bool matchesCategory = _selectedCategorySlug == 'all' ||
-                  s.categoryId.toLowerCase() ==
-                      _selectedCategorySlug.toLowerCase();
+      final bool matchesCategory = _selectedCategorySlug == 'all' ||
+          s.categoryId.toLowerCase() == _selectedCategorySlug.toLowerCase();
 
-              final bool matchesSearch = _searchQuery.isEmpty ||
-                  s.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-                  s.description
-                      .toLowerCase()
-                      .contains(_searchQuery.toLowerCase());
+      final bool matchesSearch = _searchQuery.isEmpty ||
+          s.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+          s.description.toLowerCase().contains(_searchQuery.toLowerCase());
 
-              return matchesCity && matchesCategory && matchesSearch;
-            }).toList();
+      return matchesCity && matchesCategory && matchesSearch;
+    }).toList();
 
-            return CustomScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              slivers: <Widget>[
-                // 1. Header & Hero Section with Dynamic City Picker
-                SliverToBoxAdapter(
-                  child: _buildHeaderHero(context, activeCityName, isDark),
-                ),
+    return CustomScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      slivers: <Widget>[
+        // 1. Header & Hero Section
+        SliverToBoxAdapter(
+          child: _buildHeaderHero(context, activeCityName, isDark),
+        ),
 
-                // 2. Search Box
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.fromLTRB(
-                      context.gutter,
-                      AppSpacing.lg,
-                      context.gutter,
-                      AppSpacing.sm,
-                    ),
-                    child: _buildSearchBar(context, activeCityName, isDark),
-                  ),
-                ),
+        // 2. Search Box
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              context.gutter,
+              AppSpacing.lg,
+              context.gutter,
+              AppSpacing.sm,
+            ),
+            child: _buildSearchBar(context, isDark),
+          ),
+        ),
 
-                // 3. Category Filter Chips
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-                    child: _buildCategoryChips(context, feed.categories, isDark),
-                  ),
-                ),
+        // 3. Category Filter Chips (from backend ServiceCategory)
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+            child: _buildCategoryChips(context, isDark),
+          ),
+        ),
 
-                // 4. Section Header
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.fromLTRB(
-                      context.gutter,
-                      AppSpacing.md,
-                      context.gutter,
-                      AppSpacing.sm,
-                    ),
-                    child: Row(
-                      children: <Widget>[
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: <Widget>[
-                              Text(
-                                _selectedCity != null
-                                    ? 'Layanan di ${_selectedCity!.name}'
-                                    : 'Daftar Layanan & Harga',
-                                style: theme.textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                'Tap tombol untuk pesan langsung lewat WhatsApp Admin',
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: isDark
-                                      ? AppColors.darkTextSecondary
-                                      : AppColors.lightTextSecondary,
-                                ),
-                              ),
-                            ],
-                          ),
+        // 4. Section Header
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              context.gutter,
+              AppSpacing.md,
+              context.gutter,
+              AppSpacing.sm,
+            ),
+            child: Row(
+              children: <Widget>[
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        _selectedCity != null
+                            ? 'Layanan di ${_selectedCity!.name}'
+                            : 'Daftar Layanan & Harga',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
                         ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(AppRadius.pill),
-                          ),
-                          child: Text(
-                            '${filteredServices.length} Layanan',
-                            style: const TextStyle(
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 12,
-                            ),
-                          ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Tap tombol untuk pesan langsung lewat WhatsApp Admin',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: isDark
+                              ? AppColors.darkTextSecondary
+                              : AppColors.lightTextSecondary,
                         ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                // 5. Service Cards List
-                if (filteredServices.isEmpty)
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxl),
-                      child: EmptyView(
-                        title: 'Layanan belum tersedia',
-                        message: _selectedCity != null
-                            ? 'Belum ada layanan untuk ${_selectedCity!.name}. Coba cari dengan kata kunci lain.'
-                            : 'Pilih wilayah layanan terlebih dahulu.',
-                        icon: Icons.search_off_rounded,
                       ),
-                    ),
-                  )
-                else
-                  SliverPadding(
-                    padding: EdgeInsets.fromLTRB(
-                      context.gutter,
-                      AppSpacing.sm,
-                      context.gutter,
-                      AppSpacing.lg,
-                    ),
-                    sliver: SliverList(
-                      delegate: SliverChildBuilderDelegate(
-                        (BuildContext context, int index) {
-                          final FoodItem item = filteredServices[index];
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                            child: _buildServiceCard(context, item, isDark),
-                          );
-                        },
-                        childCount: filteredServices.length,
-                      ),
-                    ),
-                  ),
-
-                // 6. Custom Request Banner
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.fromLTRB(
-                      context.gutter,
-                      AppSpacing.sm,
-                      context.gutter,
-                      AppSpacing.lg,
-                    ),
-                    child: _buildCustomRequestCard(context, activeCityName, isDark),
+                    ],
                   ),
                 ),
-
-                // 7. Footer Information
-                SliverToBoxAdapter(
-                  child: _buildFooter(context, isDark),
-                ),
-
-                // Spacing for FAB
-                const SliverToBoxAdapter(
-                  child: SizedBox(height: 80),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
+                  ),
+                  child: Text(
+                    '${filteredServices.length} Layanan',
+                    style: const TextStyle(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12,
+                    ),
+                  ),
                 ),
               ],
-            );
-          },
+            ),
+          ),
         ),
-      ),
+
+        // 5. Service Cards List (all services from backend)
+        if (filteredServices.isEmpty)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxl),
+              child: EmptyView(
+                title: 'Layanan belum tersedia',
+                message: _selectedCity != null
+                    ? 'Belum ada layanan untuk ${_selectedCity!.name}. Coba cari dengan kata kunci lain.'
+                    : 'Pilih wilayah layanan terlebih dahulu.',
+                icon: Icons.search_off_rounded,
+              ),
+            ),
+          )
+        else
+          SliverPadding(
+            padding: EdgeInsets.fromLTRB(
+              context.gutter,
+              AppSpacing.sm,
+              context.gutter,
+              AppSpacing.lg,
+            ),
+            sliver: SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (BuildContext context, int index) {
+                  final FoodItem item = filteredServices[index];
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                    child: _buildServiceCard(context, item, isDark),
+                  );
+                },
+                childCount: filteredServices.length,
+              ),
+            ),
+          ),
+
+        // 6. Custom Request Banner
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              context.gutter,
+              AppSpacing.sm,
+              context.gutter,
+              AppSpacing.lg,
+            ),
+            child: _buildCustomRequestCard(context, isDark),
+          ),
+        ),
+
+        // 7. Footer Information
+        SliverToBoxAdapter(
+          child: _buildFooter(context, isDark),
+        ),
+
+        // Spacing for FAB
+        const SliverToBoxAdapter(
+          child: SizedBox(height: 80),
+        ),
+      ],
     );
   }
 
@@ -532,7 +541,7 @@ class _LandingPageViewState extends State<_LandingPageView> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              // Top Bar: Logo, Tagline, Theme Toggle
+              // Top Bar
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: <Widget>[
@@ -584,7 +593,7 @@ class _LandingPageViewState extends State<_LandingPageView> {
 
               const SizedBox(height: AppSpacing.xl),
 
-              // Hero Banner Content with Dynamic Backend City Picker Chip
+              // Hero Banner with Dynamic City Selector
               Container(
                 padding: const EdgeInsets.all(AppSpacing.lg),
                 decoration: BoxDecoration(
@@ -670,7 +679,7 @@ class _LandingPageViewState extends State<_LandingPageView> {
                     ),
                     const SizedBox(height: 4),
                     const Text(
-                      'Pilih layanan, lihat tarif, lalu tap pesan. Langsung terhubung ke WhatsApp Admin tanpa perlu mendaftar.',
+                      'Pilih layanan, lihat tarif, lalu tap pesan. Langsung terhubung ke WhatsApp Admin tanpa perlu membuat akun.',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 13,
@@ -710,7 +719,7 @@ class _LandingPageViewState extends State<_LandingPageView> {
     );
   }
 
-  Widget _buildSearchBar(BuildContext context, String activeCityName, bool isDark) {
+  Widget _buildSearchBar(BuildContext context, bool isDark) {
     return Container(
       decoration: BoxDecoration(
         color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
@@ -765,14 +774,10 @@ class _LandingPageViewState extends State<_LandingPageView> {
     );
   }
 
-  Widget _buildCategoryChips(
-    BuildContext context,
-    List<FoodCategory> categories,
-    bool isDark,
-  ) {
+  Widget _buildCategoryChips(BuildContext context, bool isDark) {
     final List<Map<String, String>> chips = <Map<String, String>>[
       <String, String>{'slug': 'all', 'name': 'Semua', 'emoji': '✨'},
-      ...categories.map(
+      ..._categories.map(
         (FoodCategory c) => <String, String>{
           'slug': c.id,
           'name': c.name,
@@ -849,7 +854,7 @@ class _LandingPageViewState extends State<_LandingPageView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            // Service Header: Emoji + Title + Category
+            // Service Header
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
@@ -880,7 +885,7 @@ class _LandingPageViewState extends State<_LandingPageView> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        item.restaurantName,
+                        item.restaurantName.isNotEmpty ? item.restaurantName : 'Layanan Resmi',
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: AppColors.primary,
                           fontWeight: FontWeight.w600,
@@ -968,7 +973,7 @@ class _LandingPageViewState extends State<_LandingPageView> {
     );
   }
 
-  Widget _buildCustomRequestCard(BuildContext context, String activeCityName, bool isDark) {
+  Widget _buildCustomRequestCard(BuildContext context, bool isDark) {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(

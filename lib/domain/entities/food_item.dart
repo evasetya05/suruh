@@ -30,6 +30,83 @@ class FoodItem extends Equatable {
     this.availableCities = const <String>[],
   });
 
+  factory FoodItem.fromJson(Map<String, dynamic> json) {
+    final String id = json['id']?.toString() ?? json['slug']?.toString() ?? '';
+    final String name = json['name']?.toString() ?? 'Layanan SURUH';
+    final String catName = json['category_name']?.toString() ?? 'Umum';
+    final String catSlug = json['category_slug']?.toString() ?? 'umum';
+    final String shortDesc = json['short_description']?.toString() ?? '';
+    final String fullDesc = json['description']?.toString() ?? '';
+    final String desc = shortDesc.isNotEmpty ? shortDesc : fullDesc;
+
+    double price = 0.0;
+    if (json['pricing_configuration'] is Map) {
+      final Map<String, dynamic> p =
+          json['pricing_configuration'] as Map<String, dynamic>;
+      price = (p['base_price'] as num?)?.toDouble() ??
+          (p['minimum_price'] as num?)?.toDouble() ??
+          0.0;
+    }
+
+    final String? priceDisplay = json['price_display']?.toString();
+    final String? whatsappNumber = json['whatsapp_number']?.toString();
+    final String? whatsappUrl = json['whatsapp_url']?.toString();
+    final String? iconStr = json['icon']?.toString();
+
+    List<String> cities = const <String>[];
+    if (json['available_cities'] is List) {
+      cities = (json['available_cities'] as List<dynamic>)
+          .map((dynamic c) => c.toString())
+          .toList();
+    }
+
+    String emoji = '⚡';
+    if (iconStr != null && iconStr.trim().isNotEmpty && iconStr.runes.length <= 2) {
+      emoji = iconStr.trim();
+    } else {
+      final String lower = '${name.toLowerCase()} ${catSlug.toLowerCase()}';
+      if (lower.contains('belanja') ||
+          lower.contains('titip') ||
+          lower.contains('pasar')) {
+        emoji = '🛒';
+      } else if (lower.contains('dokumen') || lower.contains('surat')) {
+        emoji = '📄';
+      } else if (lower.contains('bersih') ||
+          lower.contains('rumah') ||
+          lower.contains('ac')) {
+        emoji = '🧹';
+      } else if (lower.contains('antre') || lower.contains('bantu')) {
+        emoji = '⏳';
+      } else if (lower.contains('angkut') || lower.contains('pindah')) {
+        emoji = '🚚';
+      } else if (lower.contains('servis') || lower.contains('perbaikan')) {
+        emoji = '🔧';
+      }
+    }
+
+    return FoodItem(
+      id: id,
+      restaurantId: 'prov-$catSlug',
+      restaurantName: catName,
+      name: name,
+      description: desc,
+      priceMyr: price,
+      imageUrl: (iconStr != null && iconStr.startsWith('http')) ? iconStr : null,
+      priceDisplay: (priceDisplay != null && priceDisplay.trim().isNotEmpty)
+          ? priceDisplay
+          : null,
+      whatsappNumber: whatsappNumber,
+      whatsappUrl: whatsappUrl,
+      availableCities: cities,
+      categoryId: catSlug,
+      emoji: emoji,
+      rating: 5.0,
+      reviewCount: 0,
+      isPopular: true,
+      isAvailable: true,
+    );
+  }
+
   final String id;
   final String restaurantId;
   final String restaurantName;
